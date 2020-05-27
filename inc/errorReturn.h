@@ -12,50 +12,48 @@
 #include <unistd.h>
 
 /*
- *Error codes used upon exiting the program.
+ *Error codes of control used upon exiting the program.
  */
-enum PlayerErrorCodes {
-    E_OK = 0,
-    E_INVALID_ARGS_COUNT = 1,
-    E_INVALID_PLAYER_COUNT = 2,
-    E_INVALID_PLAYER_ID = 3,
-    E_INVALID_PATH = 4,
-    E_EARLY_GAME_OVER = 5,
-    E_COMMS_ERROR = 6
+enum ControlErrorCodes {
+    E_CONTROL_OK = 0,
+    E_CONTROL_INVALID_ARGS_COUNT = 1,
+    E_CONTROL_INVALID_INFO = 2,
+    E_CONTROL_INVALID_PORT = 3,
+    E_CONTROL_INVALID_PORT2 = 4
 };
 
 /*
- *Error messages sent to stderr.
+ *Error codes of roc used upon exiting the program.
  */
-extern const char* playerErrorTexts[];
-
-/*
- *Error codes used upon exiting the dealer program.
- */
-enum DealerErrorCodes {
-    E_DEALER_OK = 0,
-    E_DEALER_INVALID_ARGS_COUNT = 1,
-    E_DEALER_INVALID_DECK = 2,
-    E_DEALER_INVALID_PATH = 3,
-    E_DEALER_INVALID_START_PLAYER = 4,
-    E_DEALER_COMMS_ERROR = 5
+enum RocErrorCodes {
+    E_ROC_OK = 0,
+    E_ROC_INVALID_ARGS_COUNT = 1,
+    E_ROC_INVALID_MAPPER_PORT = 2,
+    E_ROC_MAPPER_REQUIRED = 3,
+    E_ROC_FAILED_TO_CONNECT_MAPPER = 4,
+    E_ROC_FAILED_TO_FIND_ENTRY = 5,
+    E_ROC_FAILED_TO_CONNECT_CONTROL = 6
 };
 
 /*
- *Error messages sent to stderr.
+ *Error messages sent to stdout.
  */
-extern const char* dealerErrorTexts[];
+extern const char* controlErrorTexts[];
 
 /*
- *Print an error message to stderr and exit the program.
+ *Error messages sent to stdout.
  */
-void error_return(FILE* destination, enum PlayerErrorCodes code);
+extern const char* rocErrorTexts[];
 
 /*
- *Print an error message to stderr and exit the program.
+ *Print an error message to stdout and exit the program.
  */
-void error_return_dealer(FILE* destination, enum DealerErrorCodes code,
-    int dealerContext);
+void error_return_control(enum ControlErrorCodes code);
+
+/*
+ *Print an error message to stdout and exit the program.
+ */
+void error_return_roc(enum RocErrorCodes code);
 
 #endif
 

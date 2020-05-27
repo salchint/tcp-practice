@@ -4,51 +4,45 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include "errorReturn.h"
 
 /*
- *Error messages sent to stderr.
+ *Error messages sent to stdout.
  */
-const char* playerErrorTexts[] = {
+const char* controlErrorTexts[] = {
     "",
-    "Usage: player pcount ID",
-    "Invalid player count",
-    "Invalid ID",
-    "Invalid path",
-    "Early game over",
-    "Communications error"
+    "Usage: control2310 id info [mapper]",
+    "Invalid char in parameter",
+    "Invalid port",
+    "Can not connect to map"
 };
 
 /*
- *Error messages sent to stderr.
+ *Error messages sent to stdout.
  */
-const char* dealerErrorTexts[] = {
+const char* rocErrorTexts[] = {
     "",
-    "Usage: 2310dealer deck path p1 {p2}",
-    "Error reading deck",
-    "Error reading path",
-    "Error starting process",
-    "Communications error"
+    "Usage: roc2310 id mapper {airports}",
+    "Invalid mapper port",
+    "Mapper required",
+    "Failed to connect to mapper",
+    "No map entry for destination",
+    "Failed to connect to at least one destination"
 };
 
 /*
- *Print an error message to stderr and exit the program.
+ *Print an error message to stdout and exit the program.
  */
-void error_return(FILE* destination, enum PlayerErrorCodes code) {
-    fprintf(destination, "%s\n", playerErrorTexts[code]);
+void error_return_control(enum ControlErrorCodes code) {
+    fprintf(stdout, "%s\n", controlErrorTexts[code]);
     exit(code);
 }
 
 /*
- *Print an error message to stderr and exit the program.
+ *Print an error message to stdout and exit the program.
  */
-void error_return_dealer(FILE* destination, enum DealerErrorCodes code,
-        int dealerContext) {
-    fprintf(destination, "%s\n", dealerErrorTexts[code]);
-    if (dealerContext) {
-        exit(code);
-    }
-    _exit(code);
+void error_return_roc(enum RocErrorCodes code) {
+    fprintf(stdout, "%s\n", rocErrorTexts[code]);
+    exit(code);
 }
 
