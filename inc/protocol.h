@@ -19,6 +19,19 @@
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
+#define CONTROL_MAX_CONNECTIONS 16
+
+/*
+ *Create a server-like socket and wait for incoming connections.
+ *Returns the socket's file descriptor.
+ */
+int control_open_incoming_conn(int* port);
+
+/*
+ *Close the given socket.
+ */
+void control_close_conn(int closeSocket);
+
 /*
  *Validate the given port number.
  */

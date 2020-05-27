@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include "errorReturn.h"
 #include "protocol.h"
 
@@ -79,6 +81,19 @@ int check_args(int argc, char* argv[]) {
     return success;
 }
 
+/*
+ *Listen on an ephemeral port for planes.
+ */
+void listen_for_planes() {
+    int port = 0;
+    int acceptSocket = 0;
+
+    acceptSocket = control_open_incoming_conn(&port);
+    printf("%d\n", port);
+
+    /*listen(acceptSocket, CONTROL_MAX_CONNECTIONS);*/
+}
+
 int main(int argc, char* argv[]) {
     /*int i = 0;*/
 
@@ -90,6 +105,8 @@ int main(int argc, char* argv[]) {
     if (4 == argc) {
         mapperPort = (int)strtol(argv[3], NULL, 10);
     }
+
+    listen_for_planes();
 
     return EXIT_SUCCESS;
 }
