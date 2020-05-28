@@ -45,6 +45,11 @@ int loggedPlanes = 0;
 char** planesLog = NULL;
 
 /*
+ *Mutex protecting the read/write operations on the global state.
+ */
+static pthread_mutex_t planesLogGuard = PTHREAD_MUTEX_INITIALIZER;
+
+/*
  *Validate the command line arguments.
  */
 int check_args(int argc, char* argv[]) {
@@ -100,9 +105,7 @@ void log_plane(int fileToPlaneNo) {
         return;
     }
 
-    /*
-     *TODO lock this
-     */
+    pthread_mutex_lock(&planesLogGuard);
 
     if (!fgets(planesLog[loggedPlanes], CONTROL_MAX_ID_SIZE, streamToPlane)) {
         return;
@@ -119,6 +122,7 @@ void log_plane(int fileToPlaneNo) {
         fprintf(streamToPlane, "%s\n", info);
     }
 
+    pthread_mutex_unlock(&planesLogGuard);
     fclose(streamToPlane);
 }
 
@@ -143,9 +147,14 @@ void listen_for_planes() {
     int acceptSocket = 0;
     int planeSocket = 0;
     pthread_t planeThread;
+    pthread_attr_t planeThreadOptions;
 
     acceptSocket = control_open_incoming_conn(&port);
     printf("%d\n", port);
+
+    pthread_attr_init(&planeThreadOptions);
+    pthread_attr_setdetachstate(&planeThreadOptions,
+            PTHREAD_CREATE_DETACHED);
 
     while (keepListening) {
         listen(acceptSocket, CONTROL_MAX_CONNECTIONS);
@@ -155,13 +164,14 @@ void listen_for_planes() {
             error_return_control(E_CONTROL_FAILED_TO_CONNECT);
         }
 
-        if (0 != pthread_create(&planeThread, NULL, thread_main,
+        if (0 != pthread_create(&planeThread, &planeThreadOptions, thread_main,
                     &planeSocket)) {
             error_return_control(E_CONTROL_FAILED_TO_CONNECT);
         }
     }
 
     control_close_conn(acceptSocket);
+    pthread_attr_destroy(&planeThreadOptions);
 }
 
 int main(int argc, char* argv[]) {
