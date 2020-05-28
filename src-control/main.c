@@ -4,6 +4,8 @@
 #include <ctype.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <pthread.h>
+#include <signal.h>
 #include "errorReturn.h"
 #include "protocol.h"
 
@@ -23,30 +25,24 @@ char* info = NULL;
 int mapperPort = 0;
 
 /*
- *Upon receiving some message, execute it as long as it is valid.
+ *Keep the connection open for planes.
  */
-/*int process_command(const char* command) {*/
-    /*
-     *if (0 == strncmp("EARLY", command, 5u)) {
-     *    error_return(stderr, E_EARLY_GAME_OVER);
-     *} else if (0 == strncmp("DONE", command, 4u)) {
-     *    return 0;
-     *} else if (0 == strncmp("YT", command, 2u)) {
-     *    if (!('\0' == command[2]
-     *            || '\n' == command[2]
-     *            || EOF == command[2])) {
-     *        error_return(stderr, E_COMMS_ERROR);
-     *    }
-     *    make_move(playersCount);
-     *} else if (0 == strncmp("HAP", command, 3u)) {
-     *    player_process_move_broadcast(command, playerPositions, playerRankings,
-     *            playersCount, ownId, thisPlayer, &players, &path);
-     *} else {
-     *    error_return(stderr, E_COMMS_ERROR);
-     *}
-     *return 1;
-     */
-/*}*/
+int keepListening = 1;
+
+/*
+ *I/O stream to the connected plane.
+ */
+FILE* streamToPlane;
+
+/*
+ *The number of used entries in the planes log.
+ */
+int loggedPlanes = 0;
+
+/*
+ *The buffer holding all the logged planes.
+ */
+char** planesLog = NULL;
 
 /*
  *Validate the command line arguments.
@@ -82,20 +78,112 @@ int check_args(int argc, char* argv[]) {
 }
 
 /*
+ *Open a set of streams representing bidirectional communication to a player.
+ */
+int open_stream(int fileToPlaneNo) {
+    streamToPlane = fdopen(fileToPlaneNo, "r+");
+
+    if (!streamToPlane) {
+        return E_CONTROL_FAILED_TO_CONNECT;
+    }
+
+    return E_CONTROL_OK;
+}
+
+/*
+ *Receive the visiting plane's ID.
+ */
+void log_plane(int fileToPlaneNo) {
+    if (E_CONTROL_OK != open_stream(fileToPlaneNo)) {
+        return;
+    }
+
+    /*
+     *TODO lock this
+     */
+
+    if (!fgets(planesLog[loggedPlanes], CONTROL_MAX_ID_SIZE, streamToPlane)) {
+        return;
+    }
+    loggedPlanes += 1;
+
+    fprintf(streamToPlane, "%s\n", info);
+    fclose(streamToPlane);
+}
+
+/*
+ *The new launched thread's starting point.
+ */
+void* thread_main(void* parameter) {
+    int* planeSocket = (int*)parameter;
+
+    log_plane(*planeSocket);
+
+    control_close_conn(*planeSocket);
+
+    return NULL;
+}
+
+/*
  *Listen on an ephemeral port for planes.
  */
 void listen_for_planes() {
     int port = 0;
     int acceptSocket = 0;
+    int planeSocket = 0;
+    pthread_t planeThread;
+    /*pthread_attr_t planeThreadAttributes;*/
 
     acceptSocket = control_open_incoming_conn(&port);
     printf("%d\n", port);
 
-    /*listen(acceptSocket, CONTROL_MAX_CONNECTIONS);*/
+    while (keepListening) {
+        listen(acceptSocket, CONTROL_MAX_CONNECTIONS);
+
+        planeSocket = accept(acceptSocket, NULL, NULL);
+        if (0 > planeSocket) {
+            error_return_control(E_CONTROL_FAILED_TO_CONNECT);
+        }
+
+        /*pthread_attr_setdetachstate(&planeThreadAttributes, PTHREAD_CREATE_DETACHED);*/
+        if (0 != pthread_create(&planeThread, NULL/*&planeThreadAttributes*/, thread_main,
+                    &planeSocket)) {
+            error_return_control(E_CONTROL_FAILED_TO_CONNECT);
+        }
+    }
+
+    control_close_conn(acceptSocket);
+}
+
+void report_log() {
+    int i = 0;
+
+    for (i = 0; i < loggedPlanes; i++) {
+        printf("%s", planesLog[i]);
+    }
+    puts(".");
+}
+
+void signal_handler(int signalNumber) {
+    report_log();
+
+    switch (signalNumber) {
+        case SIGHUP:
+            keepListening = 0;
+            break;
+        case SIGINT:
+            keepListening = 0;
+            kill(getpid(), SIGKILL);
+            break;
+        default:
+            break;
+
+    }
 }
 
 int main(int argc, char* argv[]) {
-    /*int i = 0;*/
+    signal(SIGINT, signal_handler);
+    signal(SIGHUP, signal_handler);
 
     check_args(argc, argv);
 
@@ -106,8 +194,12 @@ int main(int argc, char* argv[]) {
         mapperPort = (int)strtol(argv[3], NULL, 10);
     }
 
+    planesLog = control_alloc_log(CONTROL_MAX_PLANE_COUNT, CONTROL_MAX_ID_SIZE);
+    loggedPlanes = 0;
+
     listen_for_planes();
 
+    free(planesLog);
     return EXIT_SUCCESS;
 }
 

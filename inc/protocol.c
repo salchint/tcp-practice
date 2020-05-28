@@ -16,6 +16,31 @@
 #include "protocol.h"
 
 /*
+ *Allocate a map as a contignuous chunk.
+ */
+char** control_alloc_log(int rows, int columns) {
+    int bodySize = 0;
+    int headerSize = 0;
+    char** row = NULL;
+    char* buf = NULL;
+    int i = 0;
+
+    headerSize = rows * sizeof(char*);
+    bodySize = rows * columns * sizeof(char);
+
+    row = (char**)malloc(headerSize + bodySize);
+    memset(row, 0, headerSize + bodySize);
+
+    buf = (char*)(row + rows);
+    row[0] = buf;
+    for(i = 1; i < rows; i++) {
+        row[i] = row[i - 1] + columns;
+    }
+
+    return row;
+}
+
+/*
  *Create a server-like socket and wait for incoming connections.
  *Returns the socket's file descriptor.
  */

@@ -19,7 +19,25 @@
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
+/*
+ *The maximum amount of concurrently connected planes.
+ */
 #define CONTROL_MAX_CONNECTIONS 16
+
+/*
+ *The maximum length of a plane's ID.
+ */
+#define CONTROL_MAX_ID_SIZE 512
+
+/*
+ *The maximum number of planes that can be logged.
+ */
+#define CONTROL_MAX_PLANE_COUNT 512
+
+/*
+ *Allocate a map as a contignuous chunk.
+ */
+char** control_alloc_log(int rows, int columns);
 
 /*
  *Create a server-like socket and wait for incoming connections.

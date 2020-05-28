@@ -22,7 +22,7 @@ add_executable(
     ${sources}
     ${headers}
 )
-target_link_libraries(control2310 m)
+target_link_libraries(control2310 m pthread)
 set_target_properties(control2310 PROPERTIES LINKER_LANGUAGE C)
 
 install(
