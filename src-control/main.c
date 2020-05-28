@@ -105,7 +105,11 @@ void log_plane(int fileToPlaneNo) {
     if (!fgets(planesLog[loggedPlanes], CONTROL_MAX_ID_SIZE, streamToPlane)) {
         return;
     }
-    loggedPlanes += 1;
+    if (0 == strncmp("log", planesLog[loggedPlanes], 3)) {
+        control_report_plane_log(planesLog, loggedPlanes);
+    } else {
+        loggedPlanes += 1;
+    }
 
     fprintf(streamToPlane, "%s\n", info);
     fclose(streamToPlane);
@@ -132,7 +136,6 @@ void listen_for_planes() {
     int acceptSocket = 0;
     int planeSocket = 0;
     pthread_t planeThread;
-    /*pthread_attr_t planeThreadAttributes;*/
 
     acceptSocket = control_open_incoming_conn(&port);
     printf("%d\n", port);
@@ -145,8 +148,7 @@ void listen_for_planes() {
             error_return_control(E_CONTROL_FAILED_TO_CONNECT);
         }
 
-        /*pthread_attr_setdetachstate(&planeThreadAttributes, PTHREAD_CREATE_DETACHED);*/
-        if (0 != pthread_create(&planeThread, NULL/*&planeThreadAttributes*/, thread_main,
+        if (0 != pthread_create(&planeThread, NULL, thread_main,
                     &planeSocket)) {
             error_return_control(E_CONTROL_FAILED_TO_CONNECT);
         }
@@ -155,17 +157,8 @@ void listen_for_planes() {
     control_close_conn(acceptSocket);
 }
 
-void report_log() {
-    int i = 0;
-
-    for (i = 0; i < loggedPlanes; i++) {
-        printf("%s", planesLog[i]);
-    }
-    puts(".");
-}
-
 void signal_handler(int signalNumber) {
-    report_log();
+    control_report_plane_log(planesLog, loggedPlanes);
 
     switch (signalNumber) {
         case SIGHUP:

@@ -123,3 +123,24 @@ int control_check_port(const char* arg) {
     return E_CONTROL_OK;
 }
 
+/*
+ *Comparer function used while ordering the flight information.
+ */
+static int string_comparator(const void* arg0, const void* arg1) {
+    return strcmp(*(char* const*)arg0, *(char* const*)arg1);
+}
+
+/*
+ *Write the collected airplane identifiers in lexicographic order to stdout.
+ */
+void control_report_plane_log(char** planesLog, int loggedPlanes) {
+    int i = 0;
+
+    qsort(planesLog, loggedPlanes, sizeof(char*), string_comparator);
+
+    for (i = 0; i < loggedPlanes; i++) {
+        printf("%s", planesLog[i]);
+    }
+    puts(".");
+}
+

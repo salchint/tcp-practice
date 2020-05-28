@@ -60,4 +60,9 @@ int control_check_port(const char* arg);
  */
 int control_check_chars(const char* arg);
 
+/*
+ *Write the collected airplane identifiers in lexicographic order to stdout.
+ */
+void control_report_plane_log(char** planesLog, int loggedPlanes);
+
 #endif
