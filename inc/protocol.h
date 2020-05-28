@@ -27,12 +27,12 @@
 /*
  *The maximum length of a plane's ID.
  */
-#define CONTROL_MAX_ID_SIZE 512
+#define CONTROL_MAX_ID_SIZE 80
 
 /*
  *The maximum number of planes that can be logged.
  */
-#define CONTROL_MAX_PLANE_COUNT 512
+#define CONTROL_MAX_PLANE_COUNT 1024
 
 /*
  *Allocate a map as a contignuous chunk.
@@ -61,8 +61,8 @@ int control_check_port(const char* arg);
 int control_check_chars(const char* arg);
 
 /*
- *Write the collected airplane identifiers in lexicographic order to stdout.
+ *Sort the collected airplane identifiers in lexicographic order.
  */
-void control_report_plane_log(char** planesLog, int loggedPlanes);
+void control_sort_plane_log(char** planesLog, int loggedPlanes);
 
 #endif

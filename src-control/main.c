@@ -94,6 +94,8 @@ int open_stream(int fileToPlaneNo) {
  *Receive the visiting plane's ID.
  */
 void log_plane(int fileToPlaneNo) {
+    int i = 0;
+
     if (E_CONTROL_OK != open_stream(fileToPlaneNo)) {
         return;
     }
@@ -106,12 +108,17 @@ void log_plane(int fileToPlaneNo) {
         return;
     }
     if (0 == strncmp("log", planesLog[loggedPlanes], 3)) {
-        control_report_plane_log(planesLog, loggedPlanes);
+        control_sort_plane_log(planesLog, loggedPlanes);
+
+        for (i = 0; i < loggedPlanes; i++) {
+            fprintf(streamToPlane, "%s", planesLog[i]);
+        }
+        fputs(".", streamToPlane);
     } else {
         loggedPlanes += 1;
+        fprintf(streamToPlane, "%s\n", info);
     }
 
-    fprintf(streamToPlane, "%s\n", info);
     fclose(streamToPlane);
 }
 
@@ -157,27 +164,7 @@ void listen_for_planes() {
     control_close_conn(acceptSocket);
 }
 
-void signal_handler(int signalNumber) {
-    control_report_plane_log(planesLog, loggedPlanes);
-
-    switch (signalNumber) {
-        case SIGHUP:
-            keepListening = 0;
-            break;
-        case SIGINT:
-            keepListening = 0;
-            kill(getpid(), SIGKILL);
-            break;
-        default:
-            break;
-
-    }
-}
-
 int main(int argc, char* argv[]) {
-    signal(SIGINT, signal_handler);
-    signal(SIGHUP, signal_handler);
-
     check_args(argc, argv);
 
     id = argv[1];

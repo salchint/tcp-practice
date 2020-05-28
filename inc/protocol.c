@@ -131,16 +131,9 @@ static int string_comparator(const void* arg0, const void* arg1) {
 }
 
 /*
- *Write the collected airplane identifiers in lexicographic order to stdout.
+ *Sort the collected airplane identifiers in lexicographic order.
  */
-void control_report_plane_log(char** planesLog, int loggedPlanes) {
-    int i = 0;
-
+void control_sort_plane_log(char** planesLog, int loggedPlanes) {
     qsort(planesLog, loggedPlanes, sizeof(char*), string_comparator);
-
-    for (i = 0; i < loggedPlanes; i++) {
-        printf("%s", planesLog[i]);
-    }
-    puts(".");
 }
 

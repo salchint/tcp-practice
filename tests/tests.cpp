@@ -79,7 +79,7 @@ TEST_F(A4Suite, test_sorting_planes) {
     char** planes = control_alloc_log(5, 20);
     strcpy(planes[0], "AF000");
     strcpy(planes[1], "AF111");
-    control_report_plane_log(planes, 2);
+    control_sort_plane_log(planes, 2);
     EXPECT_STREQ("AF000", planes[0]);
     EXPECT_STREQ("AF111", planes[1]);
     free(planes);
@@ -91,7 +91,7 @@ TEST_F(A4Suite, test_sorting_planes2) {
     strcpy(planes[2], "AFabc");
     strcpy(planes[3], "AF999");
     strcpy(planes[4], "AF345");
-    control_report_plane_log(planes, 5);
+    control_sort_plane_log(planes, 5);
     EXPECT_STREQ("AF000", planes[0]);
     EXPECT_STREQ("AF111", planes[1]);
     EXPECT_STREQ("AF345", planes[2]);
