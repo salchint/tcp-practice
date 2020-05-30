@@ -53,9 +53,9 @@ TEST_F(A4Suite, test_arg_chars) {
 
 TEST_F(A4Suite, test_port) {
     EXPECT_EQ(E_CONTROL_OK, control_check_port("1"));
-    EXPECT_EQ(E_CONTROL_OK, control_check_port("65534"));
+    EXPECT_EQ(E_CONTROL_OK, control_check_port("65535"));
     EXPECT_EQ(E_CONTROL_OK, control_check_port("+1"));
-    EXPECT_EQ(E_CONTROL_INVALID_PORT, control_check_port("65535"));
+    EXPECT_EQ(E_CONTROL_INVALID_PORT, control_check_port("65536"));
     EXPECT_EQ(E_CONTROL_INVALID_PORT, control_check_port("0"));
     EXPECT_EQ(E_CONTROL_INVALID_PORT, control_check_port("-1"));
     EXPECT_EQ(E_CONTROL_INVALID_PORT, control_check_port("abc"));
@@ -84,6 +84,7 @@ TEST_F(A4Suite, test_sorting_planes) {
     EXPECT_STREQ("AF111", planes[1]);
     free(planes);
 }
+
 TEST_F(A4Suite, test_sorting_planes2) {
     char** planes = control_alloc_log(5, 20);
     strcpy(planes[0], "AF000");
@@ -98,4 +99,42 @@ TEST_F(A4Suite, test_sorting_planes2) {
     EXPECT_STREQ("AF999", planes[3]);
     EXPECT_STREQ("AFabc", planes[4]);
     free(planes);
+}
+
+TEST_F(A4Suite, test_roc_id) {
+    EXPECT_EQ(E_ROC_OK, roc_check_chars("F100"));
+    EXPECT_EQ(E_ROC_OK, roc_check_chars("AF1403@ somewhat"));
+    EXPECT_EQ(E_ROC_INVALID_ARGS_COUNT,
+            roc_check_chars("faaaaaaaaaaaaaaaaaaaaaaaarrr tooooooooooooooo"
+                " loooooooooooooooooooooooonnnnnnnnnnnnnnnnnnnnnnng"));
+    EXPECT_EQ(E_ROC_INVALID_ARGS_COUNT, roc_check_chars("AF1403: somewhat"));
+    EXPECT_EQ(E_ROC_INVALID_ARGS_COUNT, roc_check_chars("AF1403\n somewhat"));
+    EXPECT_EQ(E_ROC_INVALID_ARGS_COUNT, roc_check_chars("AF1403\r somewhat"));
+}
+
+TEST_F(A4Suite, test_roc_mapper_port) {
+    EXPECT_EQ(E_ROC_OK, roc_check_port("12345"));
+    EXPECT_EQ(E_ROC_OK, roc_check_port("1"));
+    EXPECT_EQ(E_ROC_OK, roc_check_port("-"));
+    EXPECT_EQ(E_ROC_OK, roc_check_port("65535"));
+    EXPECT_EQ(E_ROC_OK, roc_check_port(" +1"));
+    EXPECT_EQ(E_ROC_INVALID_MAPPER_PORT, roc_check_port("65536"));
+    EXPECT_EQ(E_ROC_INVALID_MAPPER_PORT, roc_check_port("- "));
+    EXPECT_EQ(E_ROC_INVALID_MAPPER_PORT, roc_check_port("12o"));
+}
+
+TEST_F(A4Suite, test_roc_destination_port) {
+    EXPECT_EQ(E_ROC_OK, roc_check_destination_port("12345"));
+    EXPECT_EQ(E_ROC_OK, roc_check_destination_port("1"));
+    EXPECT_EQ(E_ROC_OK, roc_check_destination_port("65535"));
+    EXPECT_EQ(E_ROC_OK, roc_check_destination_port(" +1"));
+    EXPECT_EQ(E_ROC_INVALID_MAPPER_PORT, roc_check_destination_port("65536"));
+    EXPECT_EQ(E_ROC_INVALID_MAPPER_PORT, roc_check_destination_port("-"));
+    EXPECT_EQ(E_ROC_INVALID_MAPPER_PORT, roc_check_destination_port("12o"));
+}
+
+TEST_F(A4Suite, test_roc_resolve_control) {
+    EXPECT_EQ(1, roc_resolve_control(0, "1"));
+    EXPECT_EQ(65535, roc_resolve_control(0, "65535"));
+    EXPECT_EQ(0, roc_resolve_control(0, "SJO"));
 }

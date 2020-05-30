@@ -7,25 +7,26 @@ file(
     GLOB
     headers
     *.h
-    ../inc/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/*.h
 )
 
 file(
     GLOB
     sources
     *.c
-    ../inc/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/*.c
 )
 
 add_executable(
-    2310A
+    roc2310
     ${sources}
     ${headers}
 )
-target_link_libraries(2310A m)
+target_link_libraries(roc2310 m)
+set_target_properties(roc2310 PROPERTIES LINKER_LANGUAGE C)
 
 install(
-  TARGETS 2310A
+  TARGETS roc2310
     DESTINATION lib
 )
 

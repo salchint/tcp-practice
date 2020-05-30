@@ -18,7 +18,7 @@
 /*
  *Allocate a map as a contignuous chunk.
  */
-char** control_alloc_log(int rows, int columns) {
+char** alloc_log(int rows, int columns) {
     int bodySize = 0;
     int headerSize = 0;
     char** row = NULL;
@@ -38,6 +38,20 @@ char** control_alloc_log(int rows, int columns) {
     }
 
     return row;
+}
+
+/*
+ *Allocate an array of airport info strings.
+ */
+char** roc_alloc_log(int rows, int columns) {
+    return alloc_log(rows, columns);
+}
+
+/*
+ *Allocate an array of airplane IDs.
+ */
+char** control_alloc_log(int rows, int columns) {
+    return alloc_log(rows, columns);
 }
 
 /*
@@ -84,16 +98,101 @@ void control_close_conn(int closeSocket) {
 /*
  *Search for invalid characters in the arguments.
  */
-int control_check_chars(const char* arg) {
+int check_chars(const char* arg, int isControl) {
     int i = 0;
 
-    for (i = 0; i < strlen(arg); i++) {
-        if (arg[i] == '\n' || arg[i] == '\r' || arg[i] == ':') {
+    if (isControl) {
+        if (CONTROL_MAX_ID_SIZE <= strlen(arg)) {
             return E_CONTROL_INVALID_INFO;
+        }
+    } else {
+        if (ROC_MAX_INFO_SIZE <= strlen(arg)) {
+            return E_ROC_INVALID_ARGS_COUNT;
         }
     }
 
-    return E_CONTROL_OK;
+    for (i = 0; i < strlen(arg); i++) {
+        if (arg[i] == '\n' || arg[i] == '\r' || arg[i] == ':') {
+            if (isControl) {
+                return E_CONTROL_INVALID_INFO;
+            }
+            return E_ROC_INVALID_ARGS_COUNT;
+        }
+    }
+
+    if (isControl) {
+        return E_CONTROL_OK;
+    }
+    return E_ROC_OK;
+}
+
+/*
+ *Search for invalid characters in the arguments.
+ *Returns an error code according to enum ControlErrorCodes.
+ */
+int control_check_chars(const char* arg) {
+    return check_chars(arg, 1);
+}
+
+/*
+ *Search for invalid characters in the arguments.
+ *Returns an error code according to enum RocErrorCodes.
+ */
+int roc_check_chars(const char* arg) {
+    return check_chars(arg, 0);
+}
+
+/*
+ *Validate the given port number
+ */
+int check_port(const char* arg, int isControl, int isDestination) {
+    long int port = 0;
+    char* end = NULL;
+    int success = E_CONTROL_OK;
+
+    if (!isControl) {
+        if (!isDestination) {
+            if ('-' == arg[0] && '\0' == arg[1]) {
+                return E_ROC_OK;
+            }
+        }
+
+        if (ROC_MAX_INFO_SIZE <= strlen(arg)) {
+            return E_ROC_INVALID_MAPPER_PORT;
+        }
+    }
+
+    port = strtol(arg, &end, 10);
+
+    if ('\0' == *end) {
+        if (LONG_MIN == port || LONG_MAX == port || 65536 <= port || 0 >= port) {
+            if (isControl) {
+                return E_CONTROL_INVALID_PORT;
+            }
+            return E_ROC_INVALID_MAPPER_PORT;
+        }
+    } else {
+        if (isControl) {
+            success = control_check_chars(end);
+            if (E_CONTROL_OK != success) {
+                return success;
+            } else {
+                return E_CONTROL_INVALID_PORT;
+            }
+        } else {
+            success = roc_check_chars(end);
+            if (E_ROC_OK != success) {
+                return success;
+            } else {
+                return E_ROC_INVALID_MAPPER_PORT;
+            }
+        }
+    }
+
+    if (isControl) {
+        return E_CONTROL_OK;
+    }
+    return E_ROC_OK;
 }
 
 /*
@@ -101,26 +200,23 @@ int control_check_chars(const char* arg) {
  *Returns an error code according to enum ControlErrorCodes.
  */
 int control_check_port(const char* arg) {
-    long int port = 0;
-    char* end = NULL;
-    int success = E_CONTROL_OK;
+    return check_port(arg, 1, 0);
+}
 
-    port = strtol(arg, &end, 10);
+/*
+ *Validate the given port number
+ *Returns an error code according to enum RocErrorCodes.
+ */
+int roc_check_port(const char* arg) {
+    return check_port(arg, 0, 0);
+}
 
-    if ('\0' == *end) {
-        if (LONG_MIN == port || LONG_MAX == port || 65535 <= port || 0 >= port) {
-            return E_CONTROL_INVALID_PORT;
-        }
-    } else {
-        success = control_check_chars(end);
-        if (E_CONTROL_OK != success) {
-            return success;
-        } else {
-            return E_CONTROL_INVALID_PORT;
-        }
-    }
-
-    return E_CONTROL_OK;
+/*
+ *Validate the given port number
+ *Returns an error code according to enum RocErrorCodes.
+ */
+int roc_check_destination_port(const char* arg) {
+    return check_port(arg, 0, 1);
 }
 
 /*
@@ -135,5 +231,17 @@ static int string_comparator(const void* arg0, const void* arg1) {
  */
 void control_sort_plane_log(char** planesLog, int loggedPlanes) {
     qsort(planesLog, loggedPlanes, sizeof(char*), string_comparator);
+}
+
+/*
+ *Look up the given destination airport if needed.
+ *Returns the port number of the given airport on success, 0 else.
+ */
+int roc_resolve_control(int mapperPort, const char* destination) {
+    /*
+     *TODO implement
+     */
+
+    return 0;
 }
 
