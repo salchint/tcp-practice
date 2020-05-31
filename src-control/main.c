@@ -116,7 +116,7 @@ void log_plane(int fileToPlaneNo) {
         for (i = 0; i < loggedPlanes; i++) {
             fprintf(streamToPlane, "%s", planesLog[i]);
         }
-        fputs(".", streamToPlane);
+        fputs(".\n", streamToPlane);
     } else {
         loggedPlanes += 1;
         fprintf(streamToPlane, "%s\n", info);
