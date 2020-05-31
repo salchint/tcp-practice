@@ -61,21 +61,21 @@ int check_args(int argc, char* argv[]) {
 
     success = control_check_chars(argv[1]);
     if (E_CONTROL_OK != success) {
-        return success;
+        error_return_control(success);
     }
     success = control_check_chars(argv[2]);
     if (E_CONTROL_OK != success) {
-        return success;
+        error_return_control(success);
     }
 
     if (4 == argc) {
         success = control_check_chars(argv[3]);
         if (E_CONTROL_OK != success) {
-            return success;
+            error_return_control(success);
         }
         success = control_check_port(argv[3]);
         if (E_CONTROL_OK != success) {
-            return success;
+            error_return_control(success);
         }
     }
 
@@ -150,7 +150,8 @@ void listen_for_planes() {
     pthread_attr_t planeThreadOptions;
 
     acceptSocket = control_open_incoming_conn(&port);
-    printf("%d\n", port);
+    fprintf(stdout, "%d\n", port);
+    fflush(stdout);
 
     pthread_attr_init(&planeThreadOptions);
     pthread_attr_setdetachstate(&planeThreadOptions,

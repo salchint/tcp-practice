@@ -34,7 +34,8 @@ const char* rocErrorTexts[] = {
  *Print an error message to stdout and exit the program.
  */
 void error_return_control(enum ControlErrorCodes code) {
-    fprintf(stdout, "%s\n", controlErrorTexts[code]);
+    fprintf(stderr, "%s\n", controlErrorTexts[code]);
+    fflush(stderr);
     exit(code);
 }
 
@@ -42,7 +43,8 @@ void error_return_control(enum ControlErrorCodes code) {
  *Print an error message to stdout and exit the program.
  */
 void error_return_roc(enum RocErrorCodes code) {
-    fprintf(stdout, "%s\n", rocErrorTexts[code]);
+    fprintf(stderr, "%s\n", rocErrorTexts[code]);
+    fflush(stderr);
     exit(code);
 }
 
