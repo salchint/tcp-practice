@@ -4,10 +4,9 @@
 #include <ctype.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <pthread.h>
-#include <signal.h>
-#include "errorReturn.h"
-#include "protocol.h"
+
+#include "../inc/errorReturn.h"
+#include "../inc/protocol.h"
 
 /*
  *The airplane ID.

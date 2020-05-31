@@ -33,7 +33,7 @@ char** alloc_log(int rows, int columns) {
 
     buf = (char*)(row + rows);
     row[0] = buf;
-    for(i = 1; i < rows; i++) {
+    for (i = 1; i < rows; i++) {
         row[i] = row[i - 1] + columns;
     }
 
@@ -76,11 +76,11 @@ int control_open_incoming_conn(int* port) {
     acceptAddress.sin_family = AF_INET;
     acceptAddress.sin_addr.s_addr = INADDR_ANY;
     if (0 != bind(acceptSocket, (struct sockaddr*)(&acceptAddress),
-                addressSize)) {
+            addressSize)) {
         error_return_control(E_CONTROL_FAILED_TO_CONNECT);
     }
     if (0 != getsockname(acceptSocket, (struct sockaddr*)(&acceptAddress),
-                &addressSize)) {
+            &addressSize)) {
         error_return_control(E_CONTROL_FAILED_TO_CONNECT);
     }
     *port = ntohs(acceptAddress.sin_port);
@@ -165,7 +165,9 @@ int check_port(const char* arg, int isControl, int isDestination) {
     port = strtol(arg, &end, 10);
 
     if ('\0' == *end) {
-        if (LONG_MIN == port || LONG_MAX == port || 65536 <= port || 0 >= port) {
+        if (LONG_MIN == port || LONG_MAX == port || 65536 <= port
+                || 0 >= port) {
+
             if (isControl) {
                 return E_CONTROL_INVALID_PORT;
             }

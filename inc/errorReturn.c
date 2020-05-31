@@ -10,25 +10,25 @@
  *Error messages sent to stdout.
  */
 const char* controlErrorTexts[] = {
-    "",
-    "Usage: control2310 id info [mapper]",
-    "Invalid char in parameter",
-    "Invalid port",
-    "Can not connect to map"
-};
+        "",
+        "Usage: control2310 id info [mapper]",
+        "Invalid char in parameter",
+        "Invalid port",
+        "Can not connect to map"
+        };
 
 /*
  *Error messages sent to stdout.
  */
 const char* rocErrorTexts[] = {
-    "",
-    "Usage: roc2310 id mapper {airports}",
-    "Invalid mapper port",
-    "Mapper required",
-    "Failed to connect to mapper",
-    "No map entry for destination",
-    "Failed to connect to at least one destination"
-};
+        "",
+        "Usage: roc2310 id mapper {airports}",
+        "Invalid mapper port",
+        "Mapper required",
+        "Failed to connect to mapper",
+        "No map entry for destination",
+        "Failed to connect to at least one destination"
+        };
 
 /*
  *Print an error message to stdout and exit the program.

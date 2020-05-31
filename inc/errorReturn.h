@@ -4,8 +4,8 @@
 
 #pragma once
 
-#ifndef __ERROR_RETURN_H__
-#define __ERROR_RETURN_H__
+#ifndef ERROR_RETURN_H
+#define ERROR_RETURN_H
 
 #include <stdio.h>
 #include <stdlib.h>
