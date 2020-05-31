@@ -67,7 +67,7 @@ void check_args(int argc, char* argv[]) {
     }
 
     /*mapper port*/
-    success = roc_check_chars(argv[2]);
+    success = roc_check_port(argv[2]);
     if (E_ROC_OK != success) {
         error_return_roc(success);
     }
