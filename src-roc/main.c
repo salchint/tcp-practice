@@ -31,7 +31,7 @@ FILE* streamToControl;
 /*
  *The number of airports to visit.
  */
-int controlCount = 0;
+int destinationCount = 0;
 
 /*
  *The flight route.
@@ -93,14 +93,101 @@ void check_args(int argc, char* argv[]) {
 /*
  *Open a set of streams representing bidirectional communication to a player.
  */
-int open_stream(int fileToPlaneNo) {
-    streamToControl = fdopen(fileToPlaneNo, "r+");
+int open_stream(int fileToControlNo) {
+    streamToControl = fdopen(fileToControlNo, "r+");
 
     if (!streamToControl) {
-        return E_CONTROL_FAILED_TO_CONNECT;
+        return E_ROC_FAILED_TO_CONNECT_CONTROL;
     }
 
-    return E_CONTROL_OK;
+    return E_ROC_OK;
+}
+
+/*
+ *Print the collected airport infos to stdout.
+ */
+void print_info_logs() {
+    int i = 0;
+
+    for (i = 0; i < loggedDestinations; i++) {
+        fprintf(stdout, "%s\n", destinationInfoLogs[i]);
+    }
+    fflush(stdout);
+}
+
+/*
+ *Remove the trailing LF from the given string if present.
+ */
+void trim_string_end(char* text) {
+    char* found = NULL;
+
+    found = strrchr(text, '\n');
+    if (found) {
+        *found = '\0';
+    }
+}
+
+/*
+ *Send my airplane's id and get the airport's info back.
+ */
+int get_airport_info(char* currentInfo) {
+    fprintf(streamToControl, "%s\n", id);
+    fflush(streamToControl);
+
+    if (!fgets(currentInfo, ROC_MAX_INFO_SIZE, streamToControl)) {
+        return E_ROC_FAILED_TO_CONNECT_CONTROL;
+    }
+    trim_string_end(currentInfo);
+
+    return E_ROC_OK;
+}
+
+/*
+ *Get the airport info from all the destinations.
+ */
+void visit_all_targets() {
+    int i = 0;
+    int destinationSocket = 0;
+    int success = 1;
+    char* currentInfo = NULL;
+
+    for (i = 0; i < destinationCount; i++) {
+        destinationSocket = roc_open_destination_conn(destinationControls[i]);
+        if (0 > destinationSocket) {
+            success = 0;
+            continue;
+        }
+
+        if (E_ROC_OK != open_stream(destinationSocket)) {
+            success = 0;
+            roc_close_conn(destinationSocket);
+            continue;
+        }
+
+        currentInfo = destinationInfoLogs[loggedDestinations];
+        if (E_ROC_OK != get_airport_info(currentInfo)) {
+            success = 0;
+            roc_close_conn(destinationSocket);
+            continue;
+        }
+
+        if (E_ROC_OK != roc_check_chars(currentInfo)) {
+            success = 0;
+            fclose(streamToControl);
+            roc_close_conn(destinationSocket);
+            continue;
+        }
+
+        loggedDestinations += 1;
+        fclose(streamToControl);
+        roc_close_conn(destinationSocket);
+    }
+
+    print_info_logs();
+
+    if (!success) {
+        error_return_roc(E_ROC_FAILED_TO_CONNECT_CONTROL);
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -116,16 +203,18 @@ int main(int argc, char* argv[]) {
 
     destinationControls = (int*)malloc((argc - 3) * sizeof(int));
     for (i = 3; i < argc; i++) {
-        destinationControls[controlCount] = roc_resolve_control(mapperPort, argv[i - 3]);
-        if (destinationControls[controlCount]) {
-            controlCount += 1;
+        destinationControls[destinationCount] = roc_resolve_control(mapperPort,
+                argv[i]);
+        if (destinationControls[destinationCount]) {
+            destinationCount += 1;
         }
     }
 
-    destinationInfoLogs = roc_alloc_log(ROC_MAX_DESTINATION_COUNT, ROC_MAX_INFO_SIZE);
+    destinationInfoLogs = roc_alloc_log(ROC_MAX_DESTINATION_COUNT,
+            ROC_MAX_INFO_SIZE);
     loggedDestinations = 0;
 
-    /*visit_all_targets();*/
+    visit_all_targets();
 
     free(destinationInfoLogs);
     return EXIT_SUCCESS;

@@ -64,7 +64,7 @@ int control_open_incoming_conn(int* port) {
     struct sockaddr_in acceptAddress;
     socklen_t addressSize = sizeof(struct sockaddr_in);
 
-    memset(&acceptAddress, 0, sizeof(struct sockaddr_in));
+    memset(&acceptAddress, 0, addressSize);
 
     acceptSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (0 > acceptSocket) {
@@ -89,9 +89,43 @@ int control_open_incoming_conn(int* port) {
 }
 
 /*
+ *Open connection to the given destination airport.
+ */
+int roc_open_destination_conn(int port) {
+    int clientSocket = 0;
+    struct sockaddr_in clientAddress;
+    socklen_t addressSize = sizeof(struct sockaddr_in);
+
+    memset(&clientAddress, 0, addressSize);
+
+    clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (0 > clientSocket) {
+        return -1;
+    }
+
+    clientAddress.sin_family = AF_INET;
+    clientAddress.sin_addr.s_addr = INADDR_ANY;
+    clientAddress.sin_port = htons(port);
+
+    if (0 > connect(clientSocket, (struct sockaddr*)&clientAddress,
+                addressSize)) {
+        return -1;
+    }
+
+    return clientSocket;
+}
+
+/*
  *Close the given socket.
  */
 void control_close_conn(int closeSocket) {
+    close(closeSocket);
+}
+
+/*
+ *Close the given socket.
+ */
+void roc_close_conn(int closeSocket) {
     close(closeSocket);
 }
 
@@ -240,10 +274,15 @@ void control_sort_plane_log(char** planesLog, int loggedPlanes) {
  *Returns the port number of the given airport on success, 0 else.
  */
 int roc_resolve_control(int mapperPort, const char* destination) {
-    /*
-     *TODO implement
-     */
+    char* end = NULL;
+    int port = (int)strtol(destination, &end, 10);
 
-    return 0;
+    if ('\0' != *end) {
+        /*
+         *TODO look up this destination
+         */
+    }
+
+    return port;
 }
 

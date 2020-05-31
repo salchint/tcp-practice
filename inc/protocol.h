@@ -61,9 +61,19 @@ char** control_alloc_log(int rows, int columns);
 int control_open_incoming_conn(int* port);
 
 /*
+ *Open connection to the given destination airport.
+ */
+int roc_open_destination_conn(int port);
+
+/*
  *Close the given socket.
  */
 void control_close_conn(int closeSocket);
+
+/*
+ *Close the given socket.
+ */
+void roc_close_conn(int closeSocket);
 
 /*
  *Validate the given port number.

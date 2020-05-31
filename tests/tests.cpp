@@ -13,6 +13,11 @@ void error_return_control(enum ControlErrorCodes code) {
     return;
 }
 
+void error_return_roc(enum RocErrorCodes code) {
+    fprintf(stderr, "%s\n", rocErrorTexts[code]);
+    return;
+}
+
 #include "gtest/gtest.h"
 //#include "gmock/gmock.h"
 
