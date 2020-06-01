@@ -86,6 +86,7 @@ endif()
 # Subdirectories
 add_subdirectory(src-control)
 add_subdirectory(src-roc)
+add_subdirectory(src-mapper)
 add_subdirectory(tests)
 add_subdirectory(examples)
 add_subdirectory(doc)

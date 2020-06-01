@@ -56,6 +56,17 @@ TEST_F(A4Suite, test_arg_chars) {
     EXPECT_EQ(E_CONTROL_INVALID_INFO, control_check_chars("a:b"));
 }
 
+TEST_F(A4Suite, test_mapper_request_chars) {
+    char text0[] = "AB:yz";
+    char text1[] = "A:B:yz";
+    char text2[] = "012345678901234567890123456789012345678901234567890123456789012345678901234567890:yz";
+    EXPECT_EQ(EXIT_SUCCESS, mapper_check_chars("ABC", NULL));
+    EXPECT_EQ(EXIT_SUCCESS, mapper_check_chars(text0, text0 + 2));
+    EXPECT_EQ(EXIT_FAILURE, mapper_check_chars("a\n", NULL));
+    EXPECT_EQ(EXIT_FAILURE, mapper_check_chars(text1, text1 + 3));
+    EXPECT_EQ(EXIT_FAILURE, mapper_check_chars(text2, text2 + 81));
+}
+
 TEST_F(A4Suite, test_port) {
     EXPECT_EQ(E_CONTROL_OK, control_check_port("1"));
     EXPECT_EQ(E_CONTROL_OK, control_check_port("65535"));

@@ -7,25 +7,26 @@ file(
     GLOB
     headers
     *.h
-    ../inc/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/*.h
 )
 
 file(
     GLOB
     sources
     *.c
-    ../inc/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/*.c
 )
 
 add_executable(
-    2310dealer
+    mapper2310
     ${sources}
     ${headers}
 )
-target_link_libraries(2310dealer m)
+target_link_libraries(mapper2310 m pthread)
+set_target_properties(mapper2310 PROPERTIES LINKER_LANGUAGE C)
 
 install(
-  TARGETS 2310dealer
+  TARGETS mapper2310
     DESTINATION lib
 )
 

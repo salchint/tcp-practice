@@ -1,418 +1,229 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <limits.h>
-#include <errno.h>
-#include <signal.h>
+#include <string.h>
+#include <ctype.h>
+#include <sys/socket.h>
 #include <sys/types.h>
-#include <sys/wait.h>
-#include <fcntl.h>
-#include <unistd.h>
+#include <pthread.h>
+
 #include "../inc/errorReturn.h"
 #include "../inc/protocol.h"
 
 /*
- *The write end of a pipe.
+ *I/O stream to the connected plane or airport.
  */
-#define WRITE_END 1
-/*
- *The read end of a pipe.
- */
-#define READ_END 0
+/*FILE* streamToClient;*/
 
 /*
- *Deck object holding a sequence of cards to draw.
+ *The number of used entries in the airport map.
  */
-Deck deck;
-/*
- *Path object deserialized from the path file.
- */
-Path path;
-/*
- *All players' positions.
- */
-int* playerPositions;
-/*
- *The ranking is relevant if there are multiple players on the same site.
- */
-int* playerRankings;
-/*
- *The actual number of players in the game.
- */
-int playersCount = 0;
-/*
- *Array of players used for book-keeping.
- */
-Player players[MAX_PLAYERS];
+int mappedControls = 0;
 
 /*
- *PIDs of all player processes.
+ *The buffer holding all the mapped airports.
  */
-pid_t pids[MAX_PLAYERS];
-/*
- *Pipes directing to all players.
- */
-int pipeToPlayerNo[MAX_PLAYERS][2];
-/*
- *Pipes sourcing from all players.
- */
-int pipeToDealerNo[MAX_PLAYERS][2];
-/*
- *Streams directing to all players.
- */
-FILE* streamToPlayer[MAX_PLAYERS][2];
-/*
- *Streams sourcing from all players.
- */
-FILE* streamToDealer[MAX_PLAYERS][2];
-/*
- *Streams that are to be used for broadcasts.
- */
-FILE* broadcastStreams[MAX_PLAYERS];
+char** controlMap = NULL;
 
 /*
- *Initialize the global field representing all players' positions.
+ *Mutex protecting the read/write operations on the global state.
  */
-void init_player_positions() {
-    playerPositions = malloc(playersCount * sizeof(int));
-    playerRankings = malloc(playersCount * sizeof(int));
-    memset(playerPositions, 0, playersCount * sizeof(int));
-    memset(playerRankings, 0, playersCount * sizeof(int));
-}
+static pthread_mutex_t controlMapGuard = PTHREAD_MUTEX_INITIALIZER;
 
 /*
- *Open a set of streams representing bidirectional communication to a player.
+ *Mutex protecting the client socket variable set upon accept.
  */
-int open_stream(int playerId) {
-    streamToPlayer[playerId][READ_END]
-            = fdopen(pipeToPlayerNo[playerId][READ_END], "r");
-    streamToPlayer[playerId][WRITE_END]
-            = fdopen(pipeToPlayerNo[playerId][WRITE_END], "w");
-    streamToDealer[playerId][READ_END]
-            = fdopen(pipeToDealerNo[playerId][READ_END], "r");
-    streamToDealer[playerId][WRITE_END]
-            = fdopen(pipeToDealerNo[playerId][WRITE_END], "w");
+static pthread_mutex_t clientSocketGuard = PTHREAD_MUTEX_INITIALIZER;
 
-    if (!(streamToPlayer[playerId][READ_END]
-            || streamToPlayer[playerId][WRITE_END]
-            || streamToDealer[playerId][READ_END]
-            || streamToDealer[playerId][WRITE_END])) {
-        error_return_dealer(stderr, E_DEALER_INVALID_START_PLAYER, 0);
+/*
+ *Open a stream representing bidirectional communication to a client.
+ */
+int open_stream(int fileToClientNo, FILE** streamToClient) {
+    *streamToClient = fdopen(fileToClientNo, "r+");
+
+    if (!*streamToClient) {
+        return EXIT_FAILURE;
     }
 
-    broadcastStreams[playerId] = streamToPlayer[playerId][WRITE_END];
-    return E_DEALER_OK;
+    return EXIT_SUCCESS;
 }
 
 /*
- *Determine the player, who is next.
+ *Add a new entry to the control map.
  */
-int calculate_next_player(const int* positions, const int* rankings) {
+void add_entry(char* id) {
+    char* end;
+    int port = 0;
+    const char* seperator = strrchr(id, ':');
+    size_t distance = seperator - id;
+    char* currentEntry = controlMap[mappedControls];
+    int* currentEntryValue = (int*)(currentEntry + MAPPER_MAX_ID_SIZE);
+
+    mapper_trim_string_end(id);
+    if (EXIT_SUCCESS != mapper_check_chars(id, seperator)) {
+       return;
+    }
+
+    port = strtol(seperator + 1, &end, 10);
+    if ('\0' != *end) {
+       return;
+    }
+
+    strncpy(currentEntry, id, MIN(distance, MAPPER_MAX_ID_SIZE));
+    currentEntry[MAPPER_MAX_ID_SIZE - 1] = '\0';
+    *currentEntryValue = port;
+
+    if (mappedControls < MAPPER_MAX_CONTROL_COUNT) {
+        mappedControls += 1;
+    }
+}
+
+/*
+ *Reply the port number of the given control.
+ */
+void reply_entry(const char* id, FILE* streamToClient) {
     int i = 0;
-    int minSite = INT_MAX;
-    int maxRank = 0;
+    int* currentEntryValue = NULL;
+    size_t distance = 0;
 
-    /*Find the earliest used site*/
-    for (i = 0; i < playersCount; i++) {
-        minSite = MIN(minSite, positions[i]);
-    }
+    distance = strchr(id, '\n') - id;
 
-    /*Find the highest ranking on that site*/
-    for (i = 0; i < playersCount; i++) {
-        if (minSite == positions[i]) {
-            maxRank = MAX(maxRank, rankings[i]);
+    for (i = 0; i < mappedControls; i++) {
+        if (0 == strncmp(id, controlMap[i], distance)) {
+            currentEntryValue = (int*)(controlMap[i] + MAPPER_MAX_ID_SIZE);
+            break;
         }
     }
 
-    /*Find the player on the evaluated site and ranking*/
-    for (i = 0; i < playersCount; i++) {
-        if (minSite == positions[i]
-                && maxRank == rankings[i]) {
-            return i;
-        }
+    if (currentEntryValue) {
+        fprintf(streamToClient, "%d\n", *currentEntryValue);
+    } else {
+        fputs(";\n", streamToClient);
     }
-
-    return 0;
 }
 
 /*
- *Adjust the gobal positions and ranking board.
+ *Reply all the mapped controls.
  */
-void move_player(int id, int targetSite, int* positions, int* rankings) {
+void reply_all(FILE* streamToClient) {
     int i = 0;
-    int ranking = 0;
+    char* currentEntry = NULL;
+    int* currentEntryValue = NULL;
 
-    for (i = 0; i < playersCount; i++) {
-        if (targetSite == positions[i]) {
-            ranking += 1;
+    mapper_sort_control_map(controlMap, mappedControls);
+
+    for (i = 0; i < mappedControls; i++) {
+        currentEntry = controlMap[i];
+        currentEntryValue = (int*)(currentEntry + MAPPER_MAX_ID_SIZE);
+        fprintf(streamToClient, "%s:%d\n", currentEntry, *currentEntryValue);
+    }
+}
+
+/*
+ *Process the client's request.
+ */
+void process_requests(int fileToClientNo) {
+    char buffer[128];
+    FILE* streamToClient = NULL;
+
+    if (EXIT_SUCCESS != open_stream(fileToClientNo, &streamToClient)) {
+        return;
+    }
+
+    while (1) {
+        if (!fgets(buffer, sizeof(buffer), streamToClient)) {
+            break;
         }
+
+        pthread_mutex_lock(&controlMapGuard);
+
+        switch (buffer[0]) {
+            case '!':
+                add_entry(buffer + 1);
+                break;
+            case '?':
+                reply_entry(buffer + 1, streamToClient);
+                break;
+            case '@':
+                reply_all(streamToClient);
+                break;
+            default:
+                break;
+        }
+
+        pthread_mutex_unlock(&controlMapGuard);
     }
 
-    positions[id] = targetSite;
-    rankings[id] = ranking;
+    /*printf("Close stream\n");*/
+    fclose(streamToClient);
 }
 
 /*
- *Listen for the next move from the given player.
- *Returns zero in case the game has ended, non-zero else.
+ *The new launched thread's starting point.
  */
-int receive_next_move(FILE* readStream, int id, int* positions,
-        int* rankings) {
-    char buffer[100];
-    int targetSite = 0;
-    int readChars = 0;
-    int pointDiff = 0;
-    int moneyDiff = 0;
-    int newCard = 0;
+void* thread_main(void* parameter) {
+    int clientSocket = *(int*)parameter;
+    pthread_mutex_unlock(&clientSocketGuard);
 
-    if (!fgets(buffer, sizeof(buffer), readStream)) {
-        error_return_dealer(stdout, E_DEALER_COMMS_ERROR, 1);
-    }
+    process_requests(clientSocket);
 
-    readChars = sscanf(buffer, "DO%d", &targetSite);
-    if (1 > readChars || EOF == readChars) {
-        error_return_dealer(stdout, E_DEALER_COMMS_ERROR, 1);
-    }
-    if (path.siteCount < targetSite + 1) {
-        error_return_dealer(stdout, E_DEALER_COMMS_ERROR, 1);
-    }
+    /*printf("Close connection\n");*/
+    mapper_close_conn(clientSocket);
 
-    move_player(id, targetSite, positions, rankings);
-    dealer_calculate_player_earnings(id, targetSite, &pointDiff, &moneyDiff,
-            &newCard, &path, players + id, &deck);
-    player_print_earnings(stdout, id, players + id);
-    player_print_path(stdout, &path, playersCount, path.siteCount,
-            positions, rankings, 0);
-    dealer_broadcast_player_move(broadcastStreams, playersCount, id,
-            targetSite, pointDiff, moneyDiff, newCard);
-
-    return dealer_is_finished(playersCount, path.siteCount, positions,
-            rankings);
+    return NULL;
 }
 
 /*
- *Execute the dealer's business logic.
+ *Listen on an ephemeral port for clients.
  */
-void run_dealer() {
-    int i = 0;
-    int run = 1;
-    int nextPlayer = 0;
+int listen_for_clients() {
+    int success = EXIT_SUCCESS;
+    int port = 0;
+    int acceptSocket = 0;
+    int clientSocket = 0;
+    pthread_t clientThread;
+    pthread_attr_t clientThreadOptions;
 
-    for (i = 0; i < playersCount; i++) {
-        open_stream(i);
-
-        fclose(streamToPlayer[i][READ_END]);
-        fclose(streamToDealer[i][WRITE_END]);
-    }
-
-    /*First, print the path*/
-    player_print_path(stdout, &path, playersCount, path.siteCount,
-            playerPositions, playerRankings, 1);
+    acceptSocket = mapper_open_incoming_conn(&port);
+    fprintf(stdout, "%d\n", port);
     fflush(stdout);
 
-    /*Next, all players need to ask for the path*/
-    for (i = 0; i < playersCount; i++) {
-        if ('^' == fgetc(streamToDealer[i][READ_END])) {
-            /*fprintf(stdout, "%zu;%s", path.siteCount, path.buffer);*/
-            fprintf(streamToPlayer[i][WRITE_END], "%zu;%s", path.siteCount,
-                    path.buffer);
-            fflush(streamToPlayer[i][WRITE_END]);
-        }
-    }
+    listen(acceptSocket, CONTROL_MAX_CONNECTIONS);
 
-    while (run) {
-        /*Next, let the player make his move, which is furtherst back*/
-        nextPlayer = calculate_next_player(playerPositions, playerRankings);
-        dealer_request_next_move(streamToPlayer[nextPlayer][WRITE_END]);
-        run = receive_next_move(streamToDealer[nextPlayer][READ_END],
-                nextPlayer, playerPositions, playerRankings) ? 0 : 1;
-    }
+    pthread_attr_init(&clientThreadOptions);
+    pthread_attr_setdetachstate(&clientThreadOptions,
+            PTHREAD_CREATE_DETACHED);
 
-    /*Finally, quit all the players and print the scores*/
-    dealer_broadcast_end(broadcastStreams, playersCount);
-    player_print_scores(stdout, playersCount, players);
-}
-
-/*
- *Launch the player processes.
- */
-void run_player(int id, const char** playerNames) {
-    char buffer[100];
-    char bufferCount[10];
-    char bufferId[10];
-    int devNull = 0;
-
-    *buffer = '\0';
-    *bufferCount = '\0';
-    *bufferId = '\0';
-
-    open_stream(id);
-
-    /*Redirect stdin, stdout of the players*/
-    dup2(pipeToPlayerNo[id][READ_END], READ_END);
-    dup2(pipeToDealerNo[id][WRITE_END], WRITE_END);
-
-    /*Redirect stderr to /dev/null*/
-    devNull = open("/dev/null", O_WRONLY);
-    dup2(devNull, STDERR_FILENO);
-
-    fclose(streamToPlayer[id][READ_END]);
-    fclose(streamToPlayer[id][WRITE_END]);
-    fclose(streamToDealer[id][READ_END]);
-    fclose(streamToDealer[id][WRITE_END]);
-
-    sprintf(bufferCount, "%d", playersCount);
-    sprintf(bufferId, "%d", id);
-    execlp(playerNames[id], playerNames[id], bufferCount, bufferId, NULL);
-
-    /*Should not happen!*/
-    error_return_dealer(stderr, E_DEALER_INVALID_START_PLAYER, 0);
-}
-
-/*
- *Create child processes for the given players.
- */
-void start_players(const char** playerNames) {
-    int i = 0;
-    pid_t pid = 0;
-
-    for (i = 0; i < playersCount; i++) {
-        pipe(pipeToPlayerNo[i]);
-        pipe(pipeToDealerNo[i]);
-    }
-
-    /*Create all the players*/
-    for (i = 0; i < playersCount; i++) {
-        pid = fork();
-
-        if (0 > pid) {
-            error_return_dealer(stderr, E_DEALER_INVALID_START_PLAYER, 1);
+    while (1) {
+        pthread_mutex_lock(&clientSocketGuard);
+        clientSocket = accept(acceptSocket, NULL, NULL);
+        if (0 > clientSocket) {
+            pthread_mutex_unlock(&clientSocketGuard);
+            continue;
         }
 
-        if (0 == pid) {
-        /*Player context*/
-            run_player(i, playerNames);
+        if (0 != pthread_create(&clientThread, &clientThreadOptions,
+                thread_main, &clientSocket)) {
+            pthread_mutex_unlock(&clientSocketGuard);
+            success = EXIT_FAILURE;
             break;
-        } else {
-        /*Dealer context*/
-            pids[i] = pid;
         }
     }
 
-    if (0 < pid) {
-        /*Dealer context*/
-        run_dealer();
-    }
-}
-
-/*
- *Request the path information from the dealer.
- */
-void get_path(FILE* stream) {
-    int success = E_OK;
-
-    success = player_read_path(stream, playersCount, &path);
-    if(E_OK != success) {
-        error_return_dealer(stderr, E_DEALER_INVALID_PATH, 1);
-    }
-}
-
-/*
- *Handle the SIGHUP signal by interrupting the players.
- */
-void signal_handler(int signal) {
-    int i = 0;
-
-    switch (signal) {
-        case SIGHUP:
-            for (i = 0; i < playersCount; i++) {
-                fprintf(streamToPlayer[i][WRITE_END], "EARLY\n");
-                fflush(streamToPlayer[i][WRITE_END]);
-            }
-            for (i = 0; i < playersCount; i++) {
-                waitpid(pids[i], NULL, 0);
-            }
-    }
-
-}
-
-/*
- *Check the number of args and if the files are valid.
- */
-void verify_args(int argc, char* argv[], FILE** pathStream,
-        FILE** deckStream) {
-    char* deckName = NULL;
-    char* pathName = NULL;
-
-    /*Check for valid number of parameters*/
-    if (4 > argc) {
-        error_return_dealer(stderr, E_DEALER_INVALID_ARGS_COUNT, 1);
-    }
-
-    /*Check opening the deck file*/
-    deckName = argv[1];
-    *deckStream = fopen(deckName, "r");
-    if (NULL == *deckStream) {
-        error_return_dealer(stderr, E_DEALER_INVALID_DECK, 1);
-    }
-
-    /*Check opening the path file*/
-    pathName = argv[2];
-    *pathStream = fopen(pathName, "r");
-    if (NULL == *pathStream) {
-        error_return_dealer(stderr, E_DEALER_INVALID_PATH, 1);
-    }
-
+    mapper_close_conn(acceptSocket);
+    pthread_attr_destroy(&clientThreadOptions);
+    return success;
 }
 
 int main(int argc, char* argv[]) {
-    char** playerNames = NULL;
-    int i = 0;
-    FILE* pathStream = NULL;
-    FILE* deckStream = NULL;
-    FILE* file = NULL;
+    int success = EXIT_SUCCESS;
 
-    playersCount = 0;
-    playerPositions = NULL;
-    playerRankings = NULL;
+    controlMap = mapper_alloc_map(MAPPER_MAX_CONTROL_COUNT, MAPPER_MAX_ID_SIZE
+            + sizeof(int));
+    mappedControls = 0;
 
-    signal(SIGHUP, signal_handler);
+    success = listen_for_clients();
 
-    verify_args(argc, argv, &pathStream, &deckStream);
-
-    /*Remember the player program names*/
-    playerNames = malloc((argc - 3) * sizeof(char*));
-    for (i = 3; i < argc; i++, playersCount++) {
-        playerNames[i - 3] = argv[i];
-
-        file = fopen(playerNames[i - 3], "rb");
-        if (file) {
-            fclose(file);
-        } else {
-            error_return_dealer(stderr, E_DEALER_INVALID_START_PLAYER, 0);
-        }
-
-    }
-
-    for (i = 0; i < playersCount; i++) {
-        dealer_reset_player(players + i);
-    }
-    init_player_positions();
-    get_path(pathStream);
-    fclose(pathStream);
-    dealer_init_deck(deckStream, &deck);
-    fclose(deckStream);
-
-    start_players((const char**)playerNames);
-
-    for (i = 0; i < playersCount; i++) {
-        waitpid(pids[i], NULL, 0);
-    }
-
-    free(playerPositions);
-    free(playerRankings);
-    free(playerNames);
-    free(deck.buffer);
-
-    return EXIT_SUCCESS;
+    free(controlMap);
+    return success;
 }
 

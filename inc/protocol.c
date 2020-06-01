@@ -41,6 +41,13 @@ char** alloc_log(int rows, int columns) {
 }
 
 /*
+ *Allocate a map of airports and port numbers.
+ */
+char** mapper_alloc_map(int rows, int columns) {
+    return alloc_log(rows, columns);
+}
+
+/*
  *Allocate an array of airport info strings.
  */
 char** roc_alloc_log(int rows, int columns) {
@@ -58,7 +65,7 @@ char** control_alloc_log(int rows, int columns) {
  *Create a server-like socket and wait for incoming connections.
  *Returns the socket's file descriptor.
  */
-int control_open_incoming_conn(int* port) {
+int open_incoming_conn(int* port) {
     int acceptSocket = 0;
     int enable = 1;
     struct sockaddr_in acceptAddress;
@@ -89,6 +96,22 @@ int control_open_incoming_conn(int* port) {
 }
 
 /*
+ *Create a server-like socket and wait for incoming connections.
+ *Returns the socket's file descriptor.
+ */
+int control_open_incoming_conn(int* port) {
+    return open_incoming_conn(port);
+}
+
+/*
+ *Create a server-like socket and wait for incoming connections.
+ *Returns the socket's file descriptor.
+ */
+int mapper_open_incoming_conn(int* port) {
+    return open_incoming_conn(port);
+}
+
+/*
  *Open connection to the given destination airport.
  */
 int roc_open_destination_conn(int port) {
@@ -108,7 +131,7 @@ int roc_open_destination_conn(int port) {
     clientAddress.sin_port = htons(port);
 
     if (0 > connect(clientSocket, (struct sockaddr*)&clientAddress,
-                addressSize)) {
+            addressSize)) {
         return -1;
     }
 
@@ -130,10 +153,30 @@ void roc_close_conn(int closeSocket) {
 }
 
 /*
+ *Close the given socket.
+ */
+void mapper_close_conn(int closeSocket) {
+    close(closeSocket);
+}
+
+/*
  *Search for invalid characters in the arguments.
  */
-int check_chars(const char* arg, int isControl) {
+int check_chars(const char* arg, int isControl, const char* end) {
     int i = 0;
+    char buffer[CONTROL_MAX_ID_SIZE + 1];
+    size_t distance = 0;
+
+    if (end) {
+        strncpy(buffer, arg, CONTROL_MAX_ID_SIZE);
+        buffer[CONTROL_MAX_ID_SIZE] = '\0';
+        distance = end - arg;
+        if (CONTROL_MAX_ID_SIZE < distance) {
+            return E_CONTROL_INVALID_INFO;
+        }
+        buffer[distance] = '\0';
+        arg = buffer;
+    }
 
     if (isControl) {
         if (CONTROL_MAX_ID_SIZE <= strlen(arg)) {
@@ -165,7 +208,7 @@ int check_chars(const char* arg, int isControl) {
  *Returns an error code according to enum ControlErrorCodes.
  */
 int control_check_chars(const char* arg) {
-    return check_chars(arg, 1);
+    return check_chars(arg, 1, NULL);
 }
 
 /*
@@ -173,7 +216,16 @@ int control_check_chars(const char* arg) {
  *Returns an error code according to enum RocErrorCodes.
  */
 int roc_check_chars(const char* arg) {
-    return check_chars(arg, 0);
+    return check_chars(arg, 0, NULL);
+}
+
+/*
+ *Search for invalid characters in the arguments.
+ *Returns an error code according to enum RocErrorCodes.
+ */
+int mapper_check_chars(const char* arg, const char* end) {
+    return (check_chars(arg, 0, end) == E_ROC_OK) ? EXIT_SUCCESS :
+        EXIT_FAILURE;
 }
 
 /*
@@ -270,6 +322,13 @@ void control_sort_plane_log(char** planesLog, int loggedPlanes) {
 }
 
 /*
+ *Sort the collected airport identifiers in lexicographic order.
+ */
+void mapper_sort_control_map(char** controlMap, int mappedControls) {
+    qsort(controlMap, mappedControls, sizeof(char*), string_comparator);
+}
+
+/*
  *Look up the given destination airport if needed.
  *Returns the port number of the given airport on success, 0 else.
  */
@@ -284,5 +343,31 @@ int roc_resolve_control(int mapperPort, const char* destination) {
     }
 
     return port;
+}
+
+/*
+ *Remove the trailing LF from the given string if present.
+ */
+void trim_string_end(char* text) {
+    char* found = NULL;
+
+    found = strrchr(text, '\n');
+    if (found) {
+        *found = '\0';
+    }
+}
+
+/*
+ *Remove the trailing LF from the given string if present.
+ */
+void roc_trim_string_end(char* text) {
+    trim_string_end(text);
+}
+
+/*
+ *Remove the trailing LF from the given string if present.
+ */
+void mapper_trim_string_end(char* text) {
+    trim_string_end(text);
 }
 

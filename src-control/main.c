@@ -50,6 +50,11 @@ char** planesLog = NULL;
 static pthread_mutex_t planesLogGuard = PTHREAD_MUTEX_INITIALIZER;
 
 /*
+ *Mutex protecting the client socket variable set upon accept.
+ */
+static pthread_mutex_t clientSocketGuard = PTHREAD_MUTEX_INITIALIZER;
+
+/*
  *Validate the command line arguments.
  */
 int check_args(int argc, char* argv[]) {
@@ -83,7 +88,7 @@ int check_args(int argc, char* argv[]) {
 }
 
 /*
- *Open a set of streams representing bidirectional communication to a player.
+ *Open a stream representing bidirectional communication to a client.
  */
 int open_stream(int fileToPlaneNo) {
     streamToPlane = fdopen(fileToPlaneNo, "r+");
@@ -130,11 +135,12 @@ void log_plane(int fileToPlaneNo) {
  *The new launched thread's starting point.
  */
 void* thread_main(void* parameter) {
-    int* planeSocket = (int*)parameter;
+    int planeSocket = *(int*)parameter;
+    pthread_mutex_unlock(&clientSocketGuard);
 
-    log_plane(*planeSocket);
+    log_plane(planeSocket);
 
-    control_close_conn(*planeSocket);
+    control_close_conn(planeSocket);
 
     return NULL;
 }
@@ -153,20 +159,23 @@ void listen_for_planes() {
     fprintf(stdout, "%d\n", port);
     fflush(stdout);
 
+    listen(acceptSocket, CONTROL_MAX_CONNECTIONS);
+
     pthread_attr_init(&planeThreadOptions);
     pthread_attr_setdetachstate(&planeThreadOptions,
             PTHREAD_CREATE_DETACHED);
 
     while (keepListening) {
-        listen(acceptSocket, CONTROL_MAX_CONNECTIONS);
-
+        pthread_mutex_lock(&clientSocketGuard);
         planeSocket = accept(acceptSocket, NULL, NULL);
         if (0 > planeSocket) {
+            pthread_mutex_unlock(&clientSocketGuard);
             error_return_control(E_CONTROL_FAILED_TO_CONNECT);
         }
 
         if (0 != pthread_create(&planeThread, &planeThreadOptions, thread_main,
-                    &planeSocket)) {
+                &planeSocket)) {
+            pthread_mutex_unlock(&clientSocketGuard);
             error_return_control(E_CONTROL_FAILED_TO_CONNECT);
         }
     }

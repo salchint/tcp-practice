@@ -116,18 +116,6 @@ void print_info_logs() {
 }
 
 /*
- *Remove the trailing LF from the given string if present.
- */
-void trim_string_end(char* text) {
-    char* found = NULL;
-
-    found = strrchr(text, '\n');
-    if (found) {
-        *found = '\0';
-    }
-}
-
-/*
  *Send my airplane's id and get the airport's info back.
  */
 int get_airport_info(char* currentInfo) {
@@ -137,7 +125,7 @@ int get_airport_info(char* currentInfo) {
     if (!fgets(currentInfo, ROC_MAX_INFO_SIZE, streamToControl)) {
         return E_ROC_FAILED_TO_CONNECT_CONTROL;
     }
-    trim_string_end(currentInfo);
+    roc_trim_string_end(currentInfo);
 
     return E_ROC_OK;
 }
