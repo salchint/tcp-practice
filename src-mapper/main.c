@@ -48,6 +48,33 @@ int open_stream(int fileToClientNo, FILE** streamToClient) {
 }
 
 /*
+ *Search for the given airport ID in the control map.
+ *Returns the index of the map entry if found, -1 else.
+ */
+int find_entry(const char* id) {
+    int i = 0;
+    size_t distance = 0;
+
+    distance = strrchr(id, ':') - id;
+
+    if (MAPPER_MAX_ID_SIZE < distance) {
+        distance = strrchr(id, '\n') - id;
+    }
+
+    if (MAPPER_MAX_ID_SIZE < distance) {
+        distance = strlen(id);
+    }
+
+    for (i = 0; i < mappedControls; i++) {
+        if (0 == strncmp(id, controlMap[i], distance)) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+/*
  *Add a new entry to the control map.
  */
 void add_entry(char* id) {
@@ -57,6 +84,14 @@ void add_entry(char* id) {
     size_t distance = seperator - id;
     char* currentEntry = controlMap[mappedControls];
     int* currentEntryValue = (int*)(currentEntry + MAPPER_MAX_ID_SIZE);
+
+    if (!seperator) {
+        return;
+    }
+
+    if (0 <= find_entry(id)) {
+        return;
+    }
 
     mapper_trim_string_end(id);
     if (EXIT_SUCCESS != mapper_check_chars(id, seperator)) {
@@ -81,17 +116,12 @@ void add_entry(char* id) {
  *Reply the port number of the given control.
  */
 void reply_entry(const char* id, FILE* streamToClient) {
-    int i = 0;
+    int found = -1;
     int* currentEntryValue = NULL;
-    size_t distance = 0;
 
-    distance = strchr(id, '\n') - id;
-
-    for (i = 0; i < mappedControls; i++) {
-        if (0 == strncmp(id, controlMap[i], distance)) {
-            currentEntryValue = (int*)(controlMap[i] + MAPPER_MAX_ID_SIZE);
-            break;
-        }
+    found = find_entry(id);
+    if (0 <= found) {
+        currentEntryValue = (int*)(controlMap[found] + MAPPER_MAX_ID_SIZE);
     }
 
     if (currentEntryValue) {
