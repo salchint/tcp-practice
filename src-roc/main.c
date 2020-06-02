@@ -94,13 +94,9 @@ void check_args(int argc, char* argv[]) {
  *Open a set of streams representing bidirectional communication to a player.
  */
 int open_stream(int fileToControlNo) {
-    streamToControl = fdopen(fileToControlNo, "r+");
-
-    if (!streamToControl) {
-        return E_ROC_FAILED_TO_CONNECT_CONTROL;
-    }
-
-    return E_ROC_OK;
+    int success = open_socket_stream(fileToControlNo, &streamToControl);
+    return (EXIT_SUCCESS == success) ? E_ROC_OK :
+        E_ROC_FAILED_TO_CONNECT_CONTROL;
 }
 
 /*

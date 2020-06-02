@@ -112,9 +112,9 @@ int mapper_open_incoming_conn(int* port) {
 }
 
 /*
- *Open connection to the given destination airport.
+ *Open connection to the given server.
  */
-int roc_open_destination_conn(int port) {
+int open_client_conn(int port) {
     int clientSocket = 0;
     struct sockaddr_in clientAddress;
     socklen_t addressSize = sizeof(struct sockaddr_in);
@@ -136,6 +136,20 @@ int roc_open_destination_conn(int port) {
     }
 
     return clientSocket;
+}
+
+/*
+ *Open connection to the given destination airport.
+ */
+int roc_open_destination_conn(int port) {
+    return open_client_conn(port);
+}
+
+/*
+ *Open connection to the given mapper.
+ */
+int control_open_mapper_conn(int port) {
+    return open_client_conn(port);
 }
 
 /*
@@ -371,3 +385,41 @@ void mapper_trim_string_end(char* text) {
     trim_string_end(text);
 }
 
+/*
+ *Open a stream object from the given client socket.
+ */
+int open_socket_stream(int socketNumber, FILE** stream) {
+    *stream = fdopen(socketNumber, "r+");
+
+    if (!*stream) {
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
+/*
+ *Register the airport's port number with the mapper.
+*/
+int control_register_id(int mapperPort, int acceptPort, const char* id) {
+    int success = E_CONTROL_OK;
+    int mapperSocket = 0;
+    FILE* streamToMapper = NULL;
+
+    mapperSocket = control_open_mapper_conn(mapperPort);
+    if (0 > mapperSocket) {
+        return E_CONTROL_FAILED_TO_CONNECT;
+    }
+
+    success = open_socket_stream(mapperSocket, &streamToMapper);
+    if (EXIT_SUCCESS != success) {
+        mapper_close_conn(mapperSocket);
+        return E_CONTROL_FAILED_TO_CONNECT;
+    }
+
+    fprintf(streamToMapper, "!%s:%d\n", id, acceptPort);
+    fclose(streamToMapper);
+    control_close_conn(mapperSocket);
+
+    return E_CONTROL_OK;
+}

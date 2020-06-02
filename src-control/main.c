@@ -91,13 +91,9 @@ int check_args(int argc, char* argv[]) {
  *Open a stream representing bidirectional communication to a client.
  */
 int open_stream(int fileToPlaneNo) {
-    streamToPlane = fdopen(fileToPlaneNo, "r+");
-
-    if (!streamToPlane) {
-        return E_CONTROL_FAILED_TO_CONNECT;
-    }
-
-    return E_CONTROL_OK;
+    int success = open_socket_stream(fileToPlaneNo, &streamToPlane);
+    return (EXIT_SUCCESS == success) ? E_CONTROL_OK :
+        E_CONTROL_FAILED_TO_CONNECT;
 }
 
 /*
@@ -148,15 +144,25 @@ void* thread_main(void* parameter) {
 /*
  *Listen on an ephemeral port for planes.
  */
-void listen_for_planes() {
-    int port = 0;
+void listen_for_planes(int* port) {
+    int success = E_CONTROL_OK;
     int acceptSocket = 0;
     int planeSocket = 0;
     pthread_t planeThread;
     pthread_attr_t planeThreadOptions;
 
-    acceptSocket = control_open_incoming_conn(&port);
-    fprintf(stdout, "%d\n", port);
+    *port = 0;
+
+    acceptSocket = control_open_incoming_conn(port);
+
+    if (mapperPort) {
+        success = control_register_id(mapperPort, *port, id);
+        if (E_CONTROL_OK != success) {
+            error_return_control(success);
+        }
+    }
+
+    fprintf(stdout, "%d\n", *port);
     fflush(stdout);
 
     listen(acceptSocket, CONTROL_MAX_CONNECTIONS);
@@ -185,6 +191,8 @@ void listen_for_planes() {
 }
 
 int main(int argc, char* argv[]) {
+    int port = 0;
+
     check_args(argc, argv);
 
     id = argv[1];
@@ -197,7 +205,7 @@ int main(int argc, char* argv[]) {
     planesLog = control_alloc_log(CONTROL_MAX_PLANE_COUNT, CONTROL_MAX_ID_SIZE);
     loggedPlanes = 0;
 
-    listen_for_planes();
+    listen_for_planes(&port);
 
     free(planesLog);
     return EXIT_SUCCESS;

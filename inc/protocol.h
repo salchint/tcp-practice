@@ -87,6 +87,11 @@ int mapper_open_incoming_conn(int* port);
 int roc_open_destination_conn(int port);
 
 /*
+ *Open connection to the given mapper.
+ */
+int control_open_mapper_conn(int port);
+
+/*
  *Close the given socket.
  */
 void control_close_conn(int closeSocket);
@@ -156,5 +161,15 @@ void roc_trim_string_end(char* text);
  *Remove the trailing LF from the given string if present.
  */
 void mapper_trim_string_end(char* text);
+
+/*
+ *Open a stream object from the given client socket.
+ */
+int open_socket_stream(int socketNumber, FILE** stream);
+
+/*
+ *Register the airport's port number with the mapper.
+*/
+int control_register_id(int mapperPort, int acceptPort, const char* id);
 
 #endif
