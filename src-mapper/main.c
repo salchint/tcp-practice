@@ -67,7 +67,9 @@ int find_entry(const char* id) {
 
     for (i = 0; i < mappedControls; i++) {
         if (0 == strncmp(id, controlMap[i], distance)) {
-            return i;
+            if (strlen(controlMap[i]) == distance) {
+                return i;
+            }
         }
     }
 
@@ -94,6 +96,11 @@ void add_entry(char* id) {
     }
 
     mapper_trim_string_end(id);
+
+    if ((distance + 1) >= strlen(id)) {
+        return;
+    }
+
     if (EXIT_SUCCESS != mapper_check_chars(id, seperator)) {
        return;
     }
