@@ -343,20 +343,75 @@ void mapper_sort_control_map(char** controlMap, int mappedControls) {
 }
 
 /*
+ *Query the airport's port number from the mapper.
+*/
+int roc_find_destination_port(int mapperPort, const char* destination, long
+        int* controlPort) {
+    int mapperSocket = 0;
+    FILE* streamToMapper = NULL;
+    char buffer[ROC_MAX_INFO_SIZE + 1];
+    char* end = NULL;
+
+    mapperSocket = control_open_mapper_conn(mapperPort);
+    if (0 > mapperSocket) {
+        return E_ROC_FAILED_TO_CONNECT_MAPPER;
+    }
+
+    if (EXIT_SUCCESS != open_socket_stream(mapperSocket, &streamToMapper)) {
+        roc_close_conn(mapperSocket);
+        return E_ROC_FAILED_TO_CONNECT_MAPPER;
+    }
+
+    fprintf(streamToMapper, "?%s\n", destination);
+    fflush(streamToMapper);
+
+    if (!fgets(buffer, sizeof(buffer), streamToMapper)) {
+        fclose(streamToMapper);
+        control_close_conn(mapperSocket);
+        return E_ROC_FAILED_TO_CONNECT_MAPPER;
+    }
+
+    *controlPort = (int)strtol(buffer, &end, 10);
+
+    if ('\n' != *end || *controlPort <= 0 || 65535 < *controlPort) {
+        fclose(streamToMapper);
+        control_close_conn(mapperSocket);
+        return E_ROC_FAILED_TO_FIND_ENTRY;
+    }
+
+    fclose(streamToMapper);
+    control_close_conn(mapperSocket);
+
+    return E_ROC_OK;
+}
+
+/*
  *Look up the given destination airport if needed.
  *Returns the port number of the given airport on success, 0 else.
  */
 int roc_resolve_control(int mapperPort, const char* destination) {
+    int success = E_ROC_OK;
     char* end = NULL;
-    int port = (int)strtol(destination, &end, 10);
+    long controlPort = strtol(destination, &end, 10);
 
-    if ('\0' != *end) {
-        /*
-         *TODO look up this destination
-         */
+    if (LONG_MIN == controlPort || LONG_MAX == controlPort) {
+        return 0;
     }
 
-    return port;
+    if ('\0' != *end) {
+        success = roc_find_destination_port(mapperPort, destination,
+            &controlPort);
+
+        if (E_ROC_OK != success) {
+            error_return_roc((enum RocErrorCodes)success);
+        }
+    } else {
+        if (controlPort <= 0 || 65535 < controlPort) {
+            return 0;
+        }
+    }
+
+    return (int)controlPort;
 }
 
 /*

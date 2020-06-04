@@ -151,6 +151,7 @@ void visit_all_targets() {
         currentInfo = destinationInfoLogs[loggedDestinations];
         if (E_ROC_OK != get_airport_info(currentInfo)) {
             success = 0;
+            fclose(streamToControl);
             roc_close_conn(destinationSocket);
             continue;
         }
