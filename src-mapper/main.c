@@ -102,12 +102,12 @@ void add_entry(char* id) {
     }
 
     if (EXIT_SUCCESS != mapper_check_chars(id, seperator)) {
-       return;
+        return;
     }
 
     port = strtol(seperator + 1, &end, 10);
     if ('\0' != *end) {
-       return;
+        return;
     }
 
     strncpy(currentEntry, id, MIN(distance, MAPPER_MAX_ID_SIZE));

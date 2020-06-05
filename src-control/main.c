@@ -93,7 +93,7 @@ int check_args(int argc, char* argv[]) {
 int open_stream(int fileToPlaneNo) {
     int success = open_socket_stream(fileToPlaneNo, &streamToPlane);
     return (EXIT_SUCCESS == success) ? E_CONTROL_OK :
-        E_CONTROL_FAILED_TO_CONNECT;
+            E_CONTROL_FAILED_TO_CONNECT;
 }
 
 /*

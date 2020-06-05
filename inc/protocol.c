@@ -239,7 +239,7 @@ int roc_check_chars(const char* arg) {
  */
 int mapper_check_chars(const char* arg, const char* end) {
     return (check_chars(arg, 0, end) == E_ROC_OK) ? EXIT_SUCCESS :
-        EXIT_FAILURE;
+            EXIT_FAILURE;
 }
 
 /*
@@ -400,7 +400,7 @@ int roc_resolve_control(int mapperPort, const char* destination) {
 
     if ('\0' != *end) {
         success = roc_find_destination_port(mapperPort, destination,
-            &controlPort);
+                &controlPort);
 
         if (E_ROC_OK != success) {
             error_return_roc((enum RocErrorCodes)success);

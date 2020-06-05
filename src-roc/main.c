@@ -96,7 +96,7 @@ void check_args(int argc, char* argv[]) {
 int open_stream(int fileToControlNo) {
     int success = open_socket_stream(fileToControlNo, &streamToControl);
     return (EXIT_SUCCESS == success) ? E_ROC_OK :
-        E_ROC_FAILED_TO_CONNECT_CONTROL;
+            E_ROC_FAILED_TO_CONNECT_CONTROL;
 }
 
 /*
