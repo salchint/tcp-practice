@@ -9,33 +9,36 @@
 #include "../inc/errorReturn.h"
 #include "../inc/protocol.h"
 
-/*
- *I/O stream to the connected plane or airport.
- */
-/*FILE* streamToClient;*/
-
-/*
- *The number of used entries in the airport map.
+/**
+ * The number of used entries in the airport map.
  */
 int mappedControls = 0;
 
-/*
- *The buffer holding all the mapped airports.
+/**
+ * The buffer holding all the mapped airports.
  */
 char** controlMap = NULL;
 
-/*
- *Mutex protecting the read/write operations on the global state.
+/**
+ * Mutex protecting the read/write operations on the global state.
  */
 static pthread_mutex_t controlMapGuard = PTHREAD_MUTEX_INITIALIZER;
 
-/*
- *Mutex protecting the client socket variable set upon accept.
+/**
+ * Mutex protecting the client socket variable set upon accept.
  */
 static pthread_mutex_t clientSocketGuard = PTHREAD_MUTEX_INITIALIZER;
 
-/*
- *Open a stream representing bidirectional communication to a client.
+/**
+ * Open a stream representing bidirectional communication to a client.
+ *
+ * Returns EXIT_SUCCESS if the file stream could be opend, EXIT_FAILURE else.
+ *
+ * @param fileToClientNo  The socket, which sould be used for client
+ *                        communication.
+ *
+ * @param streamToClient  Output parameter, which is set to the file stream on
+ *                        success.
  */
 int open_stream(int fileToClientNo, FILE** streamToClient) {
     *streamToClient = fdopen(fileToClientNo, "r+");
@@ -47,9 +50,12 @@ int open_stream(int fileToClientNo, FILE** streamToClient) {
     return EXIT_SUCCESS;
 }
 
-/*
- *Search for the given airport ID in the control map.
- *Returns the index of the map entry if found, -1 else.
+/**
+ * Search for the given airport ID in the control map.
+ *
+ * Returns the index of the map entry if found, -1 else.
+ *
+ * @param id  The airport ID, which is to be looke up.
  */
 int find_entry(const char* id) {
     int i = 0;
@@ -76,8 +82,13 @@ int find_entry(const char* id) {
     return -1;
 }
 
-/*
- *Add a new entry to the control map.
+/**
+ * Add a new entry to the control map.
+ *
+ * In case the given airport ID or port number is not well formed or this ID is
+ * already registered, the problem is silently ignored.
+ *
+ * @param id  The airport ID and port number, which shall be added to the map.
  */
 void add_entry(char* id) {
     char* end;
@@ -119,8 +130,16 @@ void add_entry(char* id) {
     }
 }
 
-/*
- *Reply the port number of the given control.
+/**
+ * Reply the port number of the given control.
+ *
+ * Reply the port number registered with the given airport ID to the caller via
+ * file stream. Semi-colon is replied if no entry can be found.
+ *
+ * @param id  The airport ID, which shall be looked up.
+ *
+ * @param streamToClient  The file stream, which shall be used to send the port
+ *                        number to the caller.
  */
 void reply_entry(const char* id, FILE* streamToClient) {
     int found = -1;
@@ -138,8 +157,13 @@ void reply_entry(const char* id, FILE* streamToClient) {
     }
 }
 
-/*
- *Reply all the mapped controls.
+/**
+ * Reply all the mapped controls.
+ *
+ * Reply the ID/port pairs of all registered airports.
+ *
+ * @param streamToClient  The file stream, which shall be used to send the map
+ *                        entries  to the caller.
  */
 void reply_all(FILE* streamToClient) {
     int i = 0;
@@ -155,8 +179,14 @@ void reply_all(FILE* streamToClient) {
     }
 }
 
-/*
- *Process the client's request.
+/**
+ * Process the client's request.
+ *
+ * Receive the clients' (airplanes and airports) requests to enter and query
+ * map entries.
+ *
+ * @param fileToClientNo  The socket, which shall be used to exchange data with
+ *                        the client.
  */
 void process_requests(int fileToClientNo) {
     char buffer[128];
@@ -194,8 +224,10 @@ void process_requests(int fileToClientNo) {
     fclose(streamToClient);
 }
 
-/*
- *The new launched thread's starting point.
+/**
+ * The new launched thread's starting point.
+ *
+ * This is the thread function, which runs individual client connections.
  */
 void* thread_main(void* parameter) {
     int clientSocket = *(int*)parameter;
@@ -209,8 +241,11 @@ void* thread_main(void* parameter) {
     return NULL;
 }
 
-/*
- *Listen on an ephemeral port for clients.
+/**
+ * Listen on an ephemeral port for clients.
+ *
+ * Returns EXIT_FAILURE if no new thread could be created for an incoming
+ * client connection, EXIT_SUCCESS on success.
  */
 int listen_for_clients() {
     int success = EXIT_SUCCESS;

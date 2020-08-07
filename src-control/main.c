@@ -9,53 +9,62 @@
 #include "../inc/errorReturn.h"
 #include "../inc/protocol.h"
 
-/*
- *The airport ID.
+/**
+ * The airport ID.
  */
 char* id = NULL;
 
-/*
- *The airport info text.
+/**
+ * The airport info text.
  */
 char* info = NULL;
 
-/*
- *The port used to connect to the mapper.
+/**
+ * The port used to connect to the mapper.
  */
 int mapperPort = 0;
 
-/*
- *Keep the connection open for planes.
+/**
+ * Keep the connection open for planes.
  */
 int keepListening = 1;
 
-/*
- *I/O stream to the connected plane.
+/**
+ * I/O stream to the connected plane.
  */
 FILE* streamToPlane;
 
-/*
- *The number of used entries in the planes log.
+/**
+ * The number of used entries in the planes log.
  */
 int loggedPlanes = 0;
 
-/*
- *The buffer holding all the logged planes.
+/**
+ * The buffer holding all the logged planes.
  */
 char** planesLog = NULL;
 
-/*
- *Mutex protecting the read/write operations on the global state.
+/**
+ * Mutex protecting the read/write operations on the global state.
  */
 static pthread_mutex_t planesLogGuard = PTHREAD_MUTEX_INITIALIZER;
 
-/*
- *Mutex protecting the client socket variable set upon accept.
+/**
+ * Mutex protecting the client socket variable set upon accept.
  */
 static pthread_mutex_t clientSocketGuard = PTHREAD_MUTEX_INITIALIZER;
 
-/*
- *Validate the command line arguments.
+/**
+ * Validate the command line arguments.
+ *
+ * Returns E_CONTROL_OK on success, but does not return if the number of
+ * command line arguments is wrong or if an argument contains invalid
+ * characters or if a invalid port number is given. Instead the program exits
+ * and returns a specific error code.
+ *
+ * @param argc  The number of command line arguments.
+ *
+ * @param argv  The string array containing all the given arguments.
  */
 int check_args(int argc, char* argv[]) {
     int success = E_CONTROL_OK;
@@ -87,8 +96,14 @@ int check_args(int argc, char* argv[]) {
     return success;
 }
 
-/*
- *Open a stream representing bidirectional communication to a client.
+/**
+ * Open a stream representing bidirectional communication to a client.
+ *
+ * Returns E_CONTROL_OK if the file stream could be opend,
+ * E_CONTROL_FAILED_TO_CONNECT else.
+ *
+ * @param fileToPlaneNo The socket, which sould be used for client
+ *                      communication.
  */
 int open_stream(int fileToPlaneNo) {
     int success = open_socket_stream(fileToPlaneNo, &streamToPlane);
@@ -96,8 +111,15 @@ int open_stream(int fileToPlaneNo) {
             E_CONTROL_FAILED_TO_CONNECT;
 }
 
-/*
- *Receive the visiting plane's ID.
+/**
+ * Receive the visiting plane's ID.
+ *
+ * Receive incoming client transmissions in order to log visiting airplanes.
+ * Alternatively a request "log" can be handled. In this case all log entries
+ * are replied to the caller.
+ *
+ * @param fileToPlaneNo The socket, which sould be used for client
+ *                      communication.
  */
 void log_plane(int fileToPlaneNo) {
     int i = 0;
@@ -127,8 +149,10 @@ void log_plane(int fileToPlaneNo) {
     fclose(streamToPlane);
 }
 
-/*
- *The new launched thread's starting point.
+/**
+ * The new launched thread's starting point.
+ *
+ * This is the thread function, which runs individual client connections.
  */
 void* thread_main(void* parameter) {
     int planeSocket = *(int*)parameter;
@@ -141,8 +165,15 @@ void* thread_main(void* parameter) {
     return NULL;
 }
 
-/*
- *Listen on an ephemeral port for planes.
+/**
+ * Listen on an ephemeral port for planes.
+ *
+ * The program exits and returns a specific error code if no new thread could
+ * be created for an incoming client connection, the incoming connection cannot
+ * be accepted or this airport fails to register with the mapper.
+ *
+ * @param port  Output parameter, the ephemeral port, which this control is
+ *              listening on.
  */
 void listen_for_planes(int* port) {
     int success = E_CONTROL_OK;

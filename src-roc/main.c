@@ -8,48 +8,57 @@
 #include "../inc/errorReturn.h"
 #include "../inc/protocol.h"
 
-/*
- *The airplane ID.
+/**
+ * The airplane ID.
  */
 char* id = NULL;
 
-/*
- *The port used to connect to the mapper.
+/**
+ * The port used to connect to the mapper.
  */
 int mapperPort = 0;
 
-/*
- *Keep the connection open for planes.
+/**
+ * Keep the connection open for planes.
  */
 int keepListening = 1;
 
-/*
- *I/O stream to the currently connected airport.
+/**
+ * I/O stream to the currently connected airport.
  */
 FILE* streamToControl;
 
-/*
- *The number of airports to visit.
+/**
+ * The number of airports to visit.
  */
 int destinationCount = 0;
 
-/*
- *The flight route.
+/**
+ * The flight route.
  */
 int* destinationControls = NULL;
 
-/*
- *The number of used entries in the destinations-log.
+/**
+ * The number of used entries in the destinations-log.
  */
 int loggedDestinations = 0;
 
-/*
- *The buffer holding all the logged destination infos.
+/**
+ * The buffer holding all the logged destination infos.
  */
 char** destinationInfoLogs = NULL;
 
-/*
- *Validate the command line arguments.
+/**
+ * Validate the command line arguments.
+ *
+ * Returns E_ROC_OK on success, but does not return if the number of
+ * command line arguments is wrong or if an argument contains invalid
+ * characters or if a invalid port number is given. Instead the program exits
+ * and returns a specific error code.
+ *
+ * @param argc  The number of command line arguments.
+ *
+ * @param argv  The string array containing all the given arguments.
  */
 void check_args(int argc, char* argv[]) {
     int i = 0;
@@ -90,8 +99,14 @@ void check_args(int argc, char* argv[]) {
     }
 }
 
-/*
- *Open a set of streams representing bidirectional communication to a player.
+/**
+ * Open a set of streams representing bidirectional communication to a client.
+ *
+ * Returns E_ROC_OK if the file stream could be opend,
+ * E_ROC_FAILED_TO_CONNECT_CONTROL else.
+ *
+ * @param fileToControlNo The socket, which should be used for client
+ *                        communication.
  */
 int open_stream(int fileToControlNo) {
     int success = open_socket_stream(fileToControlNo, &streamToControl);
@@ -99,8 +114,10 @@ int open_stream(int fileToControlNo) {
             E_ROC_FAILED_TO_CONNECT_CONTROL;
 }
 
-/*
- *Print the collected airport infos to stdout.
+/**
+ * Print the collected airport infos to stdout.
+ *
+ * Dump all log entries of visited airports to stdout.
  */
 void print_info_logs() {
     int i = 0;
@@ -111,8 +128,12 @@ void print_info_logs() {
     fflush(stdout);
 }
 
-/*
- *Send my airplane's id and get the airport's info back.
+/**
+ * Send my airplane's id and get the airport's info back.
+ *
+ * Exchange data with the visited airport via the socket connection.
+ *
+ * @param currentInfo The next free log entry.
  */
 int get_airport_info(char* currentInfo) {
     fprintf(streamToControl, "%s\n", id);
@@ -126,8 +147,13 @@ int get_airport_info(char* currentInfo) {
     return E_ROC_OK;
 }
 
-/*
- *Get the airport info from all the destinations.
+/**
+ * Get the airport info from all the destinations.
+ *
+ * Visit all the destinations and exchange data with the respective controls
+ * via socket connections. In case one of the destinations cannot be contacted,
+ * continue with the next one. In this case E_ROC_FAILED_TO_CONNECT_CONTROL is
+ * returned upon exiting the program.
  */
 void visit_all_targets() {
     int i = 0;

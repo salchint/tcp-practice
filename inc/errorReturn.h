@@ -11,8 +11,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-/*
- *Error codes of control used upon exiting the program.
+/**
+ * Error codes of control used upon exiting the program.
  */
 enum ControlErrorCodes {
     E_CONTROL_OK = 0,
@@ -22,8 +22,8 @@ enum ControlErrorCodes {
     E_CONTROL_FAILED_TO_CONNECT = 4
 };
 
-/*
- *Error codes of roc used upon exiting the program.
+/**
+ * Error codes of roc used upon exiting the program.
  */
 enum RocErrorCodes {
     E_ROC_OK = 0,
@@ -35,23 +35,27 @@ enum RocErrorCodes {
     E_ROC_FAILED_TO_CONNECT_CONTROL = 6
 };
 
-/*
- *Error messages sent to stdout.
+/**
+ * Error messages sent to stderr.
  */
 extern const char* controlErrorTexts[];
 
-/*
- *Error messages sent to stdout.
+/**
+ * Error messages sent to stderr.
  */
 extern const char* rocErrorTexts[];
 
-/*
- *Print an error message to stdout and exit the program.
+/**
+ * Print an error message to stderr and exit the program.
+ *
+ * @param code  The specific error code to return upon exiting the program.
  */
 void error_return_control(enum ControlErrorCodes code);
 
-/*
- *Print an error message to stdout and exit the program.
+/**
+ * Print an error message to stderr and exit the program.
+ *
+ * @param code  The specific error code to return upon exiting the program.
  */
 void error_return_roc(enum RocErrorCodes code);
 

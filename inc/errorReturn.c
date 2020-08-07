@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include "errorReturn.h"
 
-/*
- *Error messages sent to stdout.
+/**
+ * Error messages of control sent to stderr.
  */
 const char* controlErrorTexts[] = {
         "",
@@ -17,8 +17,8 @@ const char* controlErrorTexts[] = {
         "Can not connect to map"
         };
 
-/*
- *Error messages sent to stdout.
+/**
+ * Error messages of roc sent to stderr.
  */
 const char* rocErrorTexts[] = {
         "",
@@ -30,18 +30,12 @@ const char* rocErrorTexts[] = {
         "Failed to connect to at least one destination"
         };
 
-/*
- *Print an error message to stdout and exit the program.
- */
 void error_return_control(enum ControlErrorCodes code) {
     fprintf(stderr, "%s\n", controlErrorTexts[code]);
     fflush(stderr);
     exit(code);
 }
 
-/*
- *Print an error message to stdout and exit the program.
- */
 void error_return_roc(enum RocErrorCodes code) {
     fprintf(stderr, "%s\n", rocErrorTexts[code]);
     fflush(stderr);
